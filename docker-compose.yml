@@ -1,4 +1,4 @@
-name: aishoptee3d
+name: ai-fashion-studio
 
 # Brings in postgres, kafka, minio, pgadmin, kafka-ui from infra/.
 # Run everything locally with:  docker compose up --build
@@ -9,7 +9,7 @@ include:
 services:
   api-gateway:
     build: ./backend/api-gateway
-    container_name: aishoptee3d-api-gateway
+    container_name: ai-fashion-studio-api-gateway
     restart: unless-stopped
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
@@ -22,14 +22,14 @@ services:
 
   java-core-api:
     build: ./backend/java-core-api
-    container_name: aishoptee3d-java-core-api
+    container_name: ai-fashion-studio-java-core-api
     restart: unless-stopped
     ports:
       - "${JAVA_API_PORT:-8081}:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-ai_tshirt_mvp_db}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-aishop}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-aishop_password}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-ai_fashion_studio_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-aifashionstudio}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-aifashionstudio_password}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       STORAGE_S3_ENDPOINT: http://minio:9000
       STORAGE_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
@@ -42,13 +42,13 @@ services:
 
   dotnet-platform-api:
     build: ./backend/dotnet-platform-api
-    container_name: aishoptee3d-dotnet-platform-api
+    container_name: ai-fashion-studio-dotnet-platform-api
     restart: unless-stopped
     ports:
       - "${DOTNET_API_PORT:-8082}:8080"
     environment:
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-ai_tshirt_mvp_db};Username=${POSTGRES_USER:-aishop};Password=${POSTGRES_PASSWORD:-aishop_password}"
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-ai_fashion_studio_db};Username=${POSTGRES_USER:-aifashionstudio};Password=${POSTGRES_PASSWORD:-aifashionstudio_password}"
       Kafka__BootstrapServers: "kafka:9092"
       Storage__Endpoint: "http://minio:9000"
       Storage__AccessKey: "${MINIO_ROOT_USER:-minioadmin}"

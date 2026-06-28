@@ -1,4 +1,4 @@
-# AIShopTee3d Local Infrastructure
+# ai-fashion-studio Local Infrastructure
 
 This folder contains the shared local infrastructure for the MVP learning version:
 
@@ -39,9 +39,9 @@ PostgreSQL:
 ```text
 Host: localhost
 Port: 5432
-Database: ai_tshirt_mvp_db
-Username: aishop
-Password: aishop_password
+Database: ai_fashion_studio_db
+Username: aifashionstudio
+Password: aifashionstudio_password
 ```
 
 Kafka:
@@ -56,7 +56,7 @@ pgAdmin:
 
 ```text
 URL: http://localhost:5050
-Email: admin@aishop.local
+Email: admin@aifashionstudio.local
 Password: admin123
 ```
 

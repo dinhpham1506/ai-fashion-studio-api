@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://aishoptee3d.local/contracts/kafka/OrderCreated.schema.json",
+  "$id": "https://ai-fashion-studio.local/contracts/kafka/OrderCreated.schema.json",
   "title": "OrderCreated",
   "type": "object",
   "required": [

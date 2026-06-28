@@ -1,4 +1,4 @@
-# Docs — AIShopTee3d
+# Docs — ai-fashion-studio
 
 Tài liệu trung tâm của dự án. Đọc theo thứ tự:
 

@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.aishoptee</groupId>
+    <groupId>com.aifashionstudio</groupId>
     <artifactId>java-core-api</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>java-core-api</name>

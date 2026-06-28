@@ -1,31 +1,31 @@
-name: aishoptee3d-infra
+name: ai-fashion-studio-infra
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: aishoptee3d-postgres
+    container_name: ai-fashion-studio-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-ai_tshirt_mvp_db}
-      POSTGRES_USER: ${POSTGRES_USER:-aishop}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aishop_password}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_fashion_studio_db}
+      POSTGRES_USER: ${POSTGRES_USER:-aifashionstudio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aifashionstudio_password}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aishop} -d ${POSTGRES_DB:-ai_tshirt_mvp_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aifashionstudio} -d ${POSTGRES_DB:-ai_fashion_studio_db}"]
       interval: 10s
       timeout: 5s
       retries: 10
 
   pgadmin:
     image: dpage/pgadmin4:8.12
-    container_name: aishoptee3d-pgadmin
+    container_name: ai-fashion-studio-pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@aishop.local}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@aifashionstudio.local}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
       PGADMIN_CONFIG_SERVER_MODE: "False"
     ports:
@@ -38,7 +38,7 @@ services:
 
   kafka:
     image: bitnami/kafka:3.7.0
-    container_name: aishoptee3d-kafka
+    container_name: ai-fashion-studio-kafka
     restart: unless-stopped
     environment:
       KAFKA_CFG_NODE_ID: 1
@@ -66,7 +66,7 @@ services:
 
   kafka-init:
     image: bitnami/kafka:3.7.0
-    container_name: aishoptee3d-kafka-init
+    container_name: ai-fashion-studio-kafka-init
     depends_on:
       kafka:
         condition: service_healthy
@@ -91,7 +91,7 @@ services:
 
   kafka-ui:
     image: provectuslabs/kafka-ui:v0.7.2
-    container_name: aishoptee3d-kafka-ui
+    container_name: ai-fashion-studio-kafka-ui
     restart: unless-stopped
     environment:
       KAFKA_CLUSTERS_0_NAME: local
@@ -105,7 +105,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: aishoptee3d-minio
+    container_name: ai-fashion-studio-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -119,7 +119,7 @@ services:
 
   minio-init:
     image: minio/mc:latest
-    container_name: aishoptee3d-minio-init
+    container_name: ai-fashion-studio-minio-init
     depends_on:
       - minio
     environment:

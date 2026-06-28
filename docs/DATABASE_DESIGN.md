@@ -1,6 +1,6 @@
-# Database Design — AIShopTee3d
+# Database Design — ai-fashion-studio
 
-**1 PostgreSQL** (`ai_tshirt_mvp_db`), **18 bảng** chia **8 schema** theo service boundary.
+**1 PostgreSQL** (`ai_fashion_studio_db`), **18 bảng** chia **8 schema** theo service boundary.
 DDL thật (source of truth): [infra/postgres/init/](../infra/postgres/init/).
 
 ## Quy ước chung

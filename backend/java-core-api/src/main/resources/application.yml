@@ -6,9 +6,9 @@ spring:
     name: java-core-api
   datasource:
     # Local run defaults to localhost; docker-compose overrides via env (host = "postgres")
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ai_tshirt_mvp_db}
-    username: ${SPRING_DATASOURCE_USERNAME:aishop}
-    password: ${SPRING_DATASOURCE_PASSWORD:aishop_password}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ai_fashion_studio_db}
+    username: ${SPRING_DATASOURCE_USERNAME:aifashionstudio}
+    password: ${SPRING_DATASOURCE_PASSWORD:aifashionstudio_password}
   jpa:
     open-in-view: false
     hibernate:

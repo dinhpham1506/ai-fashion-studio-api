@@ -1,4 +1,4 @@
-# AIShopTee3d
+# ai-fashion-studio
 
 MVP learning project — AI T-shirt customization & virtual try-on platform.
 Monorepo, **deploy local hết** bằng Docker Compose. Stack đều free + open-source.
@@ -11,7 +11,7 @@ Monorepo, **deploy local hết** bằng Docker Compose. Stack đều free + open
 
 ```bash
 git clone <repo-url>
-cd AIShopTee3d
+cd ai-fashion-studio
 cp .env.example .env
 ```
 
