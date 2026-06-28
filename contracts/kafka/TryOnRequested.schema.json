@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aishoptee3d.local/contracts/kafka/TryOnRequested.schema.json",
+  "title": "TryOnRequested",
+  "type": "object",
+  "required": [
+    "eventId",
+    "eventType",
+    "occurredAt",
+    "tryonRequestId",
+    "customerId",
+    "designId",
+    "userPhotoUrl"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "type": "string", "const": "TryOnRequested" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "tryonRequestId": { "type": "string", "format": "uuid" },
+    "customerId": { "type": "string", "format": "uuid" },
+    "designId": { "type": "string", "format": "uuid" },
+    "userPhotoUrl": { "type": "string" },
+    "heightCm": { "type": ["number", "null"] },
+    "weightKg": { "type": ["number", "null"] }
+  },
+  "additionalProperties": false
+}

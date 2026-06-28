@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aishoptee3d.local/contracts/kafka/OrderCreated.schema.json",
+  "title": "OrderCreated",
+  "type": "object",
+  "required": [
+    "eventId",
+    "eventType",
+    "occurredAt",
+    "orderId",
+    "orderCode",
+    "customerId",
+    "totalAmount"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "type": "string", "const": "OrderCreated" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "orderId": { "type": "string", "format": "uuid" },
+    "orderCode": { "type": "string" },
+    "customerId": { "type": "string", "format": "uuid" },
+    "totalAmount": { "type": "number" },
+    "currency": { "type": "string", "default": "VND" }
+  },
+  "additionalProperties": false
+}

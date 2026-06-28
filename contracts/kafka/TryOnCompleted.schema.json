@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aishoptee3d.local/contracts/kafka/TryOnCompleted.schema.json",
+  "title": "TryOnCompleted",
+  "type": "object",
+  "required": [
+    "eventId",
+    "eventType",
+    "occurredAt",
+    "tryonRequestId",
+    "designId",
+    "resultImageUrl"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "type": "string", "const": "TryOnCompleted" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "tryonRequestId": { "type": "string", "format": "uuid" },
+    "designId": { "type": "string", "format": "uuid" },
+    "resultImageUrl": { "type": "string" },
+    "processingTimeMs": { "type": ["integer", "null"], "minimum": 0 }
+  },
+  "additionalProperties": false
+}

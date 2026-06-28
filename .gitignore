@@ -1,0 +1,25 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Local IDE/editor files
+.idea/
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+
+# Runtime data
+infra/data/
+infra/tmp/
+
+# Nested reference repo cloned for study/demo.
+# Remove this ignore only if you intentionally want to add Claw3D as a submodule.
+Claw3D/

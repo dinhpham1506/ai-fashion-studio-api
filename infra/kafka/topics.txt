@@ -1,0 +1,6 @@
+order.events
+payment.events
+design.events
+tryon.events
+feedback.events
+notification.events

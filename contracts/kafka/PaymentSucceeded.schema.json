@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aishoptee3d.local/contracts/kafka/PaymentSucceeded.schema.json",
+  "title": "PaymentSucceeded",
+  "type": "object",
+  "required": [
+    "eventId",
+    "eventType",
+    "occurredAt",
+    "paymentId",
+    "orderId",
+    "customerId",
+    "amount",
+    "transactionCode"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "type": "string", "const": "PaymentSucceeded" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "paymentId": { "type": "string", "format": "uuid" },
+    "orderId": { "type": "string", "format": "uuid" },
+    "customerId": { "type": "string", "format": "uuid" },
+    "amount": { "type": "number" },
+    "paymentMethod": { "type": "string", "enum": ["MOCK", "VNPAY", "MOMO"] },
+    "transactionCode": { "type": "string" },
+    "invoiceNumber": { "type": ["string", "null"] },
+    "invoicePdfUrl": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}
