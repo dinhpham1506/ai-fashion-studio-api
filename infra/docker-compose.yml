@@ -103,7 +103,40 @@ services:
       kafka:
         condition: service_healthy
 
+  minio:
+    image: minio/minio:latest
+    container_name: aishoptee3d-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: aishoptee3d-minio-init
+    depends_on:
+      - minio
+    environment:
+      MC_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MC_PASS: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "
+      until mc alias set local http://minio:9000 $$MC_USER $$MC_PASS; do echo 'waiting for minio'; sleep 2; done;
+      mc mb -p local/products local/designs local/prints local/tryon local/invoices;
+      mc anonymous set download local/products;
+      echo 'minio buckets ready';
+      "
+    restart: "no"
+
 volumes:
   postgres-data:
   pgadmin-data:
   kafka-data:
+  minio-data:

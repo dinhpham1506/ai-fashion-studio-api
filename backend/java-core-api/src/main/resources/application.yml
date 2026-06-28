@@ -1,0 +1,35 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: java-core-api
+  datasource:
+    # Local run defaults to localhost; docker-compose overrides via env (host = "postgres")
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ai_tshirt_mvp_db}
+    username: ${SPRING_DATASOURCE_USERNAME:aishop}
+    password: ${SPRING_DATASOURCE_PASSWORD:aishop_password}
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Tables are created by infra/postgres/init scripts (or Flyway later). App must NOT manage schema.
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+  kafka:
+    # Local run uses host-facing listener (29092); docker-compose overrides to "kafka:9092"
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    consumer:
+      group-id: java-core-api
+      auto-offset-reset: earliest
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
