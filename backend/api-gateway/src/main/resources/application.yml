@@ -4,9 +4,9 @@ server:
 spring:
   application:
     name: api-gateway
+
   cloud:
     gateway:
-      # Local defaults to localhost ports; docker-compose overrides SVC_*_URI to service names.
       globalcors:
         cors-configurations:
           '[/**]':
@@ -15,39 +15,69 @@ spring:
               - "http://localhost:3001"
             allowed-methods: "*"
             allowed-headers: "*"
+
       routes:
         # ---- C# dotnet-platform-api ----
         - id: identity
           uri: ${SVC_DOTNET_URI:http://localhost:8082}
           predicates:
             - Path=/api/auth/**,/api/users/**,/api/roles/**
+
         - id: payment
           uri: ${SVC_DOTNET_URI:http://localhost:8082}
           predicates:
             - Path=/api/payments/**,/api/invoices/**
+
         - id: content
           uri: ${SVC_DOTNET_URI:http://localhost:8082}
           predicates:
             - Path=/api/about-us/**
+
         # ---- Java java-core-api ----
         - id: catalog
           uri: ${SVC_JAVA_URI:http://localhost:8081}
           predicates:
-            - Path=/api/products/**,/api/variants/**,/api/inventory/**
+            - Path=/api/products/**,/api/variants/**,/api/inventory/**,/admin/catalogs/**
+
         - id: design-tryon
           uri: ${SVC_JAVA_URI:http://localhost:8081}
           predicates:
             - Path=/api/designs/**,/api/tryon/**
+
         - id: ordering
           uri: ${SVC_JAVA_URI:http://localhost:8081}
           predicates:
             - Path=/api/orders/**
+
         - id: feedback
           uri: ${SVC_JAVA_URI:http://localhost:8081}
           predicates:
             - Path=/api/feedbacks/**
 
-# TODO (bạn tự làm): thêm GlobalFilter verify JWT (ký bởi C# Identity) + role guard trước khi route.
+        # ---- OpenAPI docs from Java service ----
+        - id: java-core-openapi
+          uri: ${SVC_JAVA_URI:http://localhost:8081}
+          predicates:
+            - Path=/v3/api-docs/java-core-api
+          filters:
+            - RewritePath=/v3/api-docs/java-core-api,/v3/api-docs
+
+        # ---- OpenAPI docs from .NET service ----
+        - id: platform-openapi
+          uri: ${SVC_DOTNET_URI:http://localhost:8082}
+          predicates:
+            - Path=/v3/api-docs/platform-api
+          filters:
+            - RewritePath=/v3/api-docs/platform-api,/swagger/v1/swagger.json
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: Java Core API
+        url: /v3/api-docs/java-core-api
+      - name: Platform API
+        url: /v3/api-docs/platform-api
 
 management:
   endpoints:

@@ -8,13 +8,13 @@ Bootstrap servers:
 List topics:
 
 ```bash
-docker exec -it ai-fashion-studio-kafka /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+docker exec -it ai-fashion-studio-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
 ```
 
 Create a topic manually:
 
 ```bash
-docker exec -it ai-fashion-studio-kafka /opt/bitnami/kafka/bin/kafka-topics.sh \
+docker exec -it ai-fashion-studio-kafka /opt/kafka/bin/kafka-topics.sh \
   --bootstrap-server localhost:9092 \
   --create \
   --if-not-exists \
@@ -26,7 +26,7 @@ docker exec -it ai-fashion-studio-kafka /opt/bitnami/kafka/bin/kafka-topics.sh \
 Produce a test message:
 
 ```bash
-docker exec -it ai-fashion-studio-kafka /opt/bitnami/kafka/bin/kafka-console-producer.sh \
+docker exec -it ai-fashion-studio-kafka /opt/kafka/bin/kafka-console-producer.sh \
   --bootstrap-server localhost:9092 \
   --topic order.events
 ```
@@ -40,7 +40,7 @@ Example message:
 Consume messages:
 
 ```bash
-docker exec -it ai-fashion-studio-kafka /opt/bitnami/kafka/bin/kafka-console-consumer.sh \
+docker exec -it ai-fashion-studio-kafka /opt/kafka/bin/kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 \
   --topic order.events \
   --from-beginning

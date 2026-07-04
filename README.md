@@ -47,11 +47,11 @@ cd infra && docker compose --env-file .env up -d
 | http://localhost:8080 | api-gateway (FE gọi vào đây) |
 | http://localhost:8081 | java-core-api |
 | http://localhost:8082 | dotnet-platform-api |
-| http://localhost:5050 | pgAdmin |
-| http://localhost:8085 | Kafka UI |
-| http://localhost:9001 | MinIO console |
-| localhost:5432 | PostgreSQL |
-| localhost:29092 | Kafka (external bootstrap) |
+| http://localhost:15050 | pgAdmin |
+| http://localhost:18085 | Kafka UI |
+| http://localhost:19001 | MinIO console |
+| localhost:15432 | PostgreSQL |
+| localhost:39092 | Kafka (external bootstrap) |
 
 Chi tiết Kafka/DB: [infra/README.md](infra/README.md).
 
