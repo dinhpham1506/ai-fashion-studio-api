@@ -2,6 +2,8 @@
 -- MVP tables (18) — PostgreSQL
 -- UUID via gen_random_uuid() (pgcrypto, enabled in 001)
 -- All timestamps are TIMESTAMPTZ (stored as UTC)
+-- This is the shared MVP database. Cross-service references stay as UUID values;
+-- only the owning service should write to its own schema/table.
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS identity.users (
@@ -13,7 +15,8 @@ CREATE TABLE IF NOT EXISTS identity.users (
   avatar_url TEXT,
   status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT ck_users_status CHECK (status IN ('ACTIVE', 'INACTIVE', 'BANNED'))
 );
 
 CREATE TABLE IF NOT EXISTS identity.roles (
@@ -49,7 +52,9 @@ CREATE TABLE IF NOT EXISTS catalog.products (
   status VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
   created_by UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT ck_products_base_price CHECK (base_price >= 0),
+  CONSTRAINT ck_products_status CHECK (status IN ('DRAFT', 'ACTIVE', 'INACTIVE'))
 );
 
 CREATE TABLE IF NOT EXISTS catalog.product_variants (
@@ -62,7 +67,9 @@ CREATE TABLE IF NOT EXISTS catalog.product_variants (
   price_adjustment DECIMAL(18,2) NOT NULL DEFAULT 0,
   status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT ck_product_variants_price_adjustment CHECK (price_adjustment >= 0),
+  CONSTRAINT ck_product_variants_status CHECK (status IN ('ACTIVE', 'INACTIVE'))
 );
 
 CREATE TABLE IF NOT EXISTS catalog.product_images (
@@ -71,7 +78,8 @@ CREATE TABLE IF NOT EXISTS catalog.product_images (
   image_url TEXT NOT NULL,
   is_thumbnail BOOLEAN NOT NULL DEFAULT FALSE,
   sort_order INT NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT ck_product_images_sort_order CHECK (sort_order >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS catalog.product_inventory (
@@ -99,7 +107,8 @@ CREATE TABLE IF NOT EXISTS design.designs (
   print_file_url TEXT,
   status VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT ck_designs_status CHECK (status IN ('DRAFT', 'SAVED', 'LOCKED'))
 );
 
 CREATE TABLE IF NOT EXISTS design.design_layers (
@@ -113,7 +122,9 @@ CREATE TABLE IF NOT EXISTS design.design_layers (
   height DECIMAL(10,2) NOT NULL,
   rotation DECIMAL(10,2) NOT NULL DEFAULT 0,
   color VARCHAR(50),
-  z_index INT NOT NULL DEFAULT 0
+  z_index INT NOT NULL DEFAULT 0,
+  CONSTRAINT ck_design_layers_layer_type CHECK (layer_type IN ('TEXT', 'IMAGE', 'ICON')),
+  CONSTRAINT ck_design_layers_size CHECK (width > 0 AND height > 0)
 );
 
 CREATE TABLE IF NOT EXISTS ai_tryon.tryon_requests (
@@ -126,7 +137,12 @@ CREATE TABLE IF NOT EXISTS ai_tryon.tryon_requests (
   status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
   error_message TEXT,
   requested_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  completed_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ,
+  CONSTRAINT ck_tryon_requests_status CHECK (status IN ('PENDING', 'PROCESSING', 'SUCCEEDED', 'FAILED')),
+  CONSTRAINT ck_tryon_requests_body_metrics CHECK (
+    (height_cm IS NULL OR height_cm > 0)
+    AND (weight_kg IS NULL OR weight_kg > 0)
+  )
 );
 
 CREATE TABLE IF NOT EXISTS ai_tryon.tryon_results (
@@ -135,7 +151,8 @@ CREATE TABLE IF NOT EXISTS ai_tryon.tryon_results (
   design_id UUID NOT NULL REFERENCES design.designs(id),
   result_image_url TEXT NOT NULL,
   processing_time_ms INT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT ck_tryon_results_processing_time CHECK (processing_time_ms IS NULL OR processing_time_ms >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS ordering.orders (
@@ -149,7 +166,19 @@ CREATE TABLE IF NOT EXISTS ordering.orders (
   receiver_phone VARCHAR(20) NOT NULL,
   shipping_address TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT ck_orders_total_amount CHECK (total_amount >= 0),
+  CONSTRAINT ck_orders_payment_status CHECK (payment_status IN ('PENDING', 'PAID', 'FAILED')),
+  CONSTRAINT ck_orders_order_status CHECK (
+    order_status IN (
+      'PENDING_PAYMENT',
+      'PAID',
+      'IN_PRODUCTION',
+      'SHIPPING',
+      'COMPLETED',
+      'CANCELLED'
+    )
+  )
 );
 
 CREATE TABLE IF NOT EXISTS ordering.order_items (
@@ -163,7 +192,8 @@ CREATE TABLE IF NOT EXISTS ordering.order_items (
   quantity INT NOT NULL,
   unit_price DECIMAL(18,2) NOT NULL,
   total_price DECIMAL(18,2) NOT NULL,
-  CONSTRAINT ck_order_item_quantity CHECK (quantity > 0)
+  CONSTRAINT ck_order_item_quantity CHECK (quantity > 0),
+  CONSTRAINT ck_order_item_prices CHECK (unit_price >= 0 AND total_price >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS payment.payments (
@@ -177,7 +207,10 @@ CREATE TABLE IF NOT EXISTS payment.payments (
   invoice_number VARCHAR(100),
   invoice_pdf_url TEXT,
   paid_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT ck_payments_amount CHECK (amount >= 0),
+  CONSTRAINT ck_payments_method CHECK (payment_method IN ('MOCK', 'VNPAY', 'MOMO')),
+  CONSTRAINT ck_payments_status CHECK (payment_status IN ('PENDING', 'PAID', 'FAILED'))
 );
 
 CREATE TABLE IF NOT EXISTS ordering.order_status_history (
@@ -187,7 +220,27 @@ CREATE TABLE IF NOT EXISTS ordering.order_status_history (
   to_status VARCHAR(50) NOT NULL,
   changed_by UUID,
   note TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT ck_order_status_history_from_status CHECK (
+    from_status IS NULL OR from_status IN (
+      'PENDING_PAYMENT',
+      'PAID',
+      'IN_PRODUCTION',
+      'SHIPPING',
+      'COMPLETED',
+      'CANCELLED'
+    )
+  ),
+  CONSTRAINT ck_order_status_history_to_status CHECK (
+    to_status IN (
+      'PENDING_PAYMENT',
+      'PAID',
+      'IN_PRODUCTION',
+      'SHIPPING',
+      'COMPLETED',
+      'CANCELLED'
+    )
+  )
 );
 
 CREATE TABLE IF NOT EXISTS feedback.feedbacks (
@@ -202,7 +255,8 @@ CREATE TABLE IF NOT EXISTS feedback.feedbacks (
   reviewed_by UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT ck_feedback_rating CHECK (rating BETWEEN 1 AND 5)
+  CONSTRAINT ck_feedback_rating CHECK (rating BETWEEN 1 AND 5),
+  CONSTRAINT ck_feedbacks_status CHECK (status IN ('PENDING', 'APPROVED', 'HIDDEN', 'REJECTED'))
 );
 
 CREATE TABLE IF NOT EXISTS content.about_us_contents (
@@ -213,7 +267,8 @@ CREATE TABLE IF NOT EXISTS content.about_us_contents (
   image_url TEXT,
   status VARCHAR(30) NOT NULL DEFAULT 'DRAFT',
   updated_by UUID,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT ck_about_us_contents_status CHECK (status IN ('DRAFT', 'PUBLISHED'))
 );
 
 -- ============================================================
@@ -242,8 +297,14 @@ CREATE INDEX IF NOT EXISTS ix_order_items_order_id         ON ordering.order_ite
 CREATE INDEX IF NOT EXISTS ix_order_items_design_id        ON ordering.order_items(design_id);
 CREATE INDEX IF NOT EXISTS ix_order_status_history_order_id ON ordering.order_status_history(order_id);
 
-CREATE INDEX IF NOT EXISTS ix_payments_order_id            ON payment.payments(order_id);
 CREATE INDEX IF NOT EXISTS ix_payments_customer_id         ON payment.payments(customer_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_payments_order_id      ON payment.payments(order_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_payments_transaction_code
+  ON payment.payments(transaction_code)
+  WHERE transaction_code IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_payments_invoice_number
+  ON payment.payments(invoice_number)
+  WHERE invoice_number IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS ix_feedbacks_order_id           ON feedback.feedbacks(order_id);
 CREATE INDEX IF NOT EXISTS ix_feedbacks_product_id         ON feedback.feedbacks(product_id);
