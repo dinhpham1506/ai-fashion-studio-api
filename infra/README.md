@@ -38,29 +38,29 @@ PostgreSQL:
 
 ```text
 Host: localhost
-Port: 5432
+Port: 15432
 Database: ai_fashion_studio_db
 Username: aifashionstudio
-Password: aifashionstudio_password
+Password: value from POSTGRES_PASSWORD in your .env file
 ```
 
 Kafka:
 
 ```text
-Host bootstrap server: localhost:29092
+Host bootstrap server: localhost:39092
 Docker bootstrap server: kafka:9092
-Kafka UI: http://localhost:8085
+Kafka UI: http://localhost:18085
 ```
 
 pgAdmin:
 
 ```text
-URL: http://localhost:5050
+URL: http://localhost:15050
 Email: admin@aifashionstudio.local
-Password: admin123
+Password: value from PGADMIN_PASSWORD in your .env file
 ```
 
-When adding the PostgreSQL server in pgAdmin, use `postgres` as the host because pgAdmin runs inside Docker.
+When adding the PostgreSQL server in pgAdmin, use `postgres` as the host and `5432` as the port because pgAdmin runs inside Docker.
 
 ## MVP Topic Map
 

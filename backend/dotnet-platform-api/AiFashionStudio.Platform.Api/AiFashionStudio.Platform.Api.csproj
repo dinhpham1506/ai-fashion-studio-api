@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\AiFashionStudio.Platform.Application\AiFashionStudio.Platform.Application.csproj" />
     <ProjectReference Include="..\AiFashionStudio.Platform.Infrastructure\AiFashionStudio.Platform.Infrastructure.csproj" />
   </ItemGroup>

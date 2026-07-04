@@ -26,6 +26,7 @@ Claw3D/
 
 # Local Claude agent tooling (not part of the project)
 .agents/
+.claude/
 
 # Build artifacts
 **/target/
