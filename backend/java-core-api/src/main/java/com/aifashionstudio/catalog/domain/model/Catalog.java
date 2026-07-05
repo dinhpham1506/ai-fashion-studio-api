@@ -55,13 +55,27 @@ public class Catalog extends AuditableDomainModel {
 
     // Behavior method thay vì setter trần
     public void changeStatus(CatalogStatus newStatus) {
+        if (newStatus == null) {
+            throw new IllegalArgumentException("Catalog status cannot be null");
+        }
         if (this.status == CatalogStatus.ARCHIVED) {
             throw new IllegalStateException("Catalog is archived and cannot change status");
         }
         if (this.status == CatalogStatus.DRAFT && newStatus == CatalogStatus.ARCHIVED) {
-            throw new IllegalStateException("Cata mustlog be active before it can be archived");
+            throw new IllegalStateException("Catalog must be active before it can be archived");
         }
         this.status = newStatus;
+    }
+
+    public void updateDetails(String name, String description, BigDecimal basePrice) {
+        if (this.status == CatalogStatus.ARCHIVED) {
+            throw new IllegalStateException("Catalog is archived and cannot be updated");
+        }
+        validateName(name);
+        validateBasePrice(basePrice);
+        this.name = name.trim();
+        this.description = description;
+        this.basePrice = basePrice;
     }
 
     public void updatePrice(BigDecimal newPrice) {

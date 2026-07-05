@@ -18,5 +18,9 @@ public interface CatalogRepository {
 
     List<Catalog> findByNameContainingIgnoreCase(String name);
 
+    List<Catalog> findByStatusAndNameContainingIgnoreCase(CatalogStatus status, String name);
+
     boolean existsByNameIgnoreCase(String name);
+
+    boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id);
 }
