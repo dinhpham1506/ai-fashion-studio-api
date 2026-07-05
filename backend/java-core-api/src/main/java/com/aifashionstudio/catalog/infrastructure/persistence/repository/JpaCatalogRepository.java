@@ -13,5 +13,9 @@ public interface JpaCatalogRepository extends JpaRepository<CatalogJpaEntity, UU
 
     List<CatalogJpaEntity> findByNameContainingIgnoreCase(String name);
 
+    List<CatalogJpaEntity> findByStatusAndNameContainingIgnoreCase(CatalogStatus status, String name);
+
     boolean existsByNameIgnoreCase(String name);
+
+    boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id);
 }

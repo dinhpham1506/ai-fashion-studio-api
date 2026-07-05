@@ -1,10 +1,13 @@
 package com.aifashionstudio.catalog.api.controller;
 
 import com.aifashionstudio.catalog.api.dto.CatalogResponse;
+import com.aifashionstudio.catalog.api.dto.ChangeCatalogStatusRequest;
 import com.aifashionstudio.catalog.api.dto.CreateCatalogRequest;
+import com.aifashionstudio.catalog.api.dto.UpdateCatalogRequest;
 import com.aifashionstudio.catalog.api.mapper.CatalogApiMapper;
 import com.aifashionstudio.catalog.application.dto.CatalogResult;
 import com.aifashionstudio.catalog.application.service.CatalogApplicationService;
+import com.aifashionstudio.catalog.domain.model.CatalogStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,9 +31,12 @@ public class CatalogController {
                 .body(mapper.toResponse(result));
     }
     @GetMapping
-    public ResponseEntity<List<CatalogResponse>> getCatalogs() {
+    public ResponseEntity<List<CatalogResponse>> getCatalogs(
+            @RequestParam(required = false) CatalogStatus status,
+            @RequestParam(required = false) String name
+    ) {
         return ResponseEntity.ok(
-                catalogApplicationService.getCatalogs()
+                catalogApplicationService.getCatalogs(status, name)
                         .stream()
                         .map(mapper::toResponse)
                         .toList()
@@ -44,6 +50,22 @@ public class CatalogController {
         );
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<CatalogResponse> updateCatalog(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateCatalogRequest request
+    ) {
+        CatalogResult result = catalogApplicationService.updateCatalog(mapper.toCommand(id, request));
+        return ResponseEntity.ok(mapper.toResponse(result));
+    }
 
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<CatalogResponse> changeCatalogStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody ChangeCatalogStatusRequest request
+    ) {
+        CatalogResult result = catalogApplicationService.changeCatalogStatus(mapper.toCommand(id, request));
+        return ResponseEntity.ok(mapper.toResponse(result));
+    }
 
 }
