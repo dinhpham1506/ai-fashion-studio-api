@@ -1,10 +1,16 @@
 package com.aifashionstudio.catalog.api.mapper;
 
 import com.aifashionstudio.catalog.api.dto.CatalogResponse;
+import com.aifashionstudio.catalog.api.dto.ChangeCatalogStatusRequest;
 import com.aifashionstudio.catalog.api.dto.CreateCatalogRequest;
+import com.aifashionstudio.catalog.api.dto.UpdateCatalogRequest;
+import com.aifashionstudio.catalog.application.command.ChangeCatalogStatusCommand;
 import com.aifashionstudio.catalog.application.command.CreateCatalogCommand;
+import com.aifashionstudio.catalog.application.command.UpdateCatalogCommand;
 import com.aifashionstudio.catalog.application.dto.CatalogResult;
 import org.springframework.stereotype.Component;
+
+import java.util.UUID;
 
 @Component
 public class CatalogApiMapper {
@@ -20,6 +26,19 @@ public class CatalogApiMapper {
                 request.description(),
                 request.basePrice()
         );
+    }
+
+    public UpdateCatalogCommand toCommand(UUID id, UpdateCatalogRequest request) {
+        return new UpdateCatalogCommand(
+                id,
+                request.name(),
+                request.description(),
+                request.basePrice()
+        );
+    }
+
+    public ChangeCatalogStatusCommand toCommand(UUID id, ChangeCatalogStatusRequest request) {
+        return new ChangeCatalogStatusCommand(id, request.status());
     }
 
     public CatalogResponse toResponse(CatalogResult result) {
