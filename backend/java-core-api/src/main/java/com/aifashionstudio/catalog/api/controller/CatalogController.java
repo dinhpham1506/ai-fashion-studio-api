@@ -8,10 +8,10 @@ import com.aifashionstudio.catalog.application.service.CatalogApplicationService
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/admin/catalogs")
@@ -27,6 +27,23 @@ public class CatalogController {
         return ResponseEntity.status(201)
                 .body(mapper.toResponse(result));
     }
+    @GetMapping
+    public ResponseEntity<List<CatalogResponse>> getCatalogs() {
+        return ResponseEntity.ok(
+                catalogApplicationService.getCatalogs()
+                        .stream()
+                        .map(mapper::toResponse)
+                        .toList()
+        );
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<CatalogResponse> getCatalogById(@PathVariable UUID id) {
+        return ResponseEntity.ok(
+                mapper.toResponse(catalogApplicationService.getCatalogById(id))
+        );
+    }
+
 
 
 }

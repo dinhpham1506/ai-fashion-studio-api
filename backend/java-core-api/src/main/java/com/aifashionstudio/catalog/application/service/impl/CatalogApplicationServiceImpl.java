@@ -7,9 +7,13 @@ import com.aifashionstudio.catalog.application.service.CatalogApplicationService
 import com.aifashionstudio.catalog.domain.model.Catalog;
 import com.aifashionstudio.catalog.domain.repository.CatalogRepository;
 import com.aifashionstudio.catalog.domain.service.CatalogDomainService;
+import com.aifashionstudio.shared.exception.NotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -34,5 +38,22 @@ public class CatalogApplicationServiceImpl implements CatalogApplicationService 
 
         Catalog savedCatalog = catalogRepository.save(catalog);
         return catalogApplicationMapper.toResult(savedCatalog);
+    }
+
+    @Override
+    public CatalogResult getCatalogById(UUID id) {
+        Catalog catalog = catalogRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException(
+                        "CATALOG_NOT_FOUND",
+                        "Catalog not found with id: " + id
+                ));
+
+        return catalogApplicationMapper.toResult(catalog);
+    }
+
+    @Override
+    public List<CatalogResult> getCatalogs() {
+        return catalogRepository.findAll()
+                .stream().map(catalogApplicationMapper::toResult).toList();
     }
 }

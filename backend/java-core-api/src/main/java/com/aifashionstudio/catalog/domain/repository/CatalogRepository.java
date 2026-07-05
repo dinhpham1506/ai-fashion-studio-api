@@ -12,6 +12,7 @@ public interface CatalogRepository {
     Catalog save(Catalog catalog);
 
     Optional<Catalog> findById(UUID id);
+    List<Catalog> findAll();
 
     List<Catalog> findByStatus(CatalogStatus status);
 

@@ -31,6 +31,14 @@ public class CatalogPersistenceAdapter implements CatalogRepository {
     }
 
     @Override
+    public List<Catalog> findAll() {
+        return  jpaCatalogRepository.findAll()
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public List<Catalog> findByStatus(CatalogStatus status) {
         return jpaCatalogRepository.findByStatus(status)
                 .stream()
