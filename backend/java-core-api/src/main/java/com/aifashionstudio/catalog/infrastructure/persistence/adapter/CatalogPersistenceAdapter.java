@@ -55,7 +55,20 @@ public class CatalogPersistenceAdapter implements CatalogRepository {
     }
 
     @Override
+    public List<Catalog> findByStatusAndNameContainingIgnoreCase(CatalogStatus status, String name) {
+        return jpaCatalogRepository.findByStatusAndNameContainingIgnoreCase(status, name)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public boolean existsByNameIgnoreCase(String name) {
         return jpaCatalogRepository.existsByNameIgnoreCase(name);
+    }
+
+    @Override
+    public boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id) {
+        return jpaCatalogRepository.existsByNameIgnoreCaseAndIdNot(name, id);
     }
 }
