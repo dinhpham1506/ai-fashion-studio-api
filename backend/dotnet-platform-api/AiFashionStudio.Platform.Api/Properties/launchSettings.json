@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "AiFashionStudio.Platform.Api": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:57591;http://localhost:57592"
+    }
+  }
+}
