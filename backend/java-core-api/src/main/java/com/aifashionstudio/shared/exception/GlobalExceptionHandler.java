@@ -4,6 +4,7 @@ import com.aifashionstudio.shared.response.ApiError;
 import com.aifashionstudio.shared.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -55,6 +56,22 @@ public class GlobalExceptionHandler  {
                                 ex.getMessage()))
                 ));
     }
-}
 
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse> handleValidation(MethodArgumentNotValidException ex) {
+        List<ApiError> errors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(error -> new ApiError(
+                        error.getField(),
+                        "VALIDATION_FAILED",
+                        error.getDefaultMessage()
+                ))
+                .toList();
+
+        return ResponseEntity
+                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ApiResponse.error("Validation failed", errors));
+    }
+}
 

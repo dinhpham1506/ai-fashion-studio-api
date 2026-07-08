@@ -37,7 +37,7 @@ spring:
         - id: catalog
           uri: ${SVC_JAVA_URI:http://localhost:8081}
           predicates:
-            - Path=/api/products/**,/api/variants/**,/api/inventory/**,/admin/catalogs/**
+            - Path=/api/products/**,/api/variants/**,/api/inventory/**,/admin/catalogs/**,/admin/variants/**,/admin/inventory/**
 
         - id: design-tryon
           uri: ${SVC_JAVA_URI:http://localhost:8081}

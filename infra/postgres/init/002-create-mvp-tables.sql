@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS catalog.products (
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT ck_products_base_price CHECK (base_price >= 0),
-  CONSTRAINT ck_products_status CHECK (status IN ('DRAFT', 'ACTIVE', 'INACTIVE'))
+  CONSTRAINT ck_products_status CHECK (status IN ('DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED'))
 );
 
 CREATE TABLE IF NOT EXISTS catalog.product_variants (
