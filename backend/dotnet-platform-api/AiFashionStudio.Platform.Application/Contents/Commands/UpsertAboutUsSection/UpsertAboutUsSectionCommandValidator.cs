@@ -5,6 +5,9 @@ namespace AiFashionStudio.Platform.Application.Contents.Commands.UpsertAboutUsSe
 {
     public class UpsertAboutUsSectionCommandValidator : AbstractValidator<UpsertAboutUsSectionCommand>
     {
+        /// <summary>
+        /// Configures validation rules for an About Us section update command.
+        /// </summary>
         public UpsertAboutUsSectionCommandValidator()
         {
             RuleFor(command => command.SectionKey)

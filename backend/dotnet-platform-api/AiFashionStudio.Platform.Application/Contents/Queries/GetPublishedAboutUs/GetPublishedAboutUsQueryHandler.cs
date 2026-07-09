@@ -12,11 +12,19 @@ namespace AiFashionStudio.Platform.Application.Contents.Queries.GetPublishedAbou
     {
         private readonly IAboutUsContentRepository _aboutUsContentRepository;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GetPublishedAboutUsQueryHandler"/> class.
+        /// </summary>
+        /// <param name="aboutUsContentRepository">The repository used to retrieve About Us content.</param>
         public GetPublishedAboutUsQueryHandler(IAboutUsContentRepository aboutUsContentRepository)
         {
             _aboutUsContentRepository = aboutUsContentRepository;
         }
 
+        /// <summary>
+        /// Gets the published About Us sections.
+        /// </summary>
+        /// <returns>The published About Us sections.</returns>
         public async Task<IReadOnlyCollection<AboutUsSectionResponse>> Handle(GetPublishedAboutUsQuery request, CancellationToken cancellationToken)
         {
             var sections = await _aboutUsContentRepository.GetPublishedAsync(cancellationToken);

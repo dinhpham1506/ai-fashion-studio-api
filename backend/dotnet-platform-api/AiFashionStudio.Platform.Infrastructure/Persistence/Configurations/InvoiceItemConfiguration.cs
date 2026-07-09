@@ -6,6 +6,9 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Configurations;
 
 public class InvoiceItemConfiguration : IEntityTypeConfiguration<InvoiceItem>
 {
+    /// <summary>
+    /// Configures the database mapping for <see cref="InvoiceItem"/>.
+    /// </summary>
     public void Configure(EntityTypeBuilder<InvoiceItem> builder)
     {
         builder.ToTable("invoice_items");

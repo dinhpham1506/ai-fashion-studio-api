@@ -1,4 +1,4 @@
-﻿using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
+using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
 using AiFashionStudio.Platform.Domain.Payment.Entities;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -13,6 +13,10 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Repositories
     {
         private readonly AppDbContext _appDbContext;
 
+        /// <summary>
+        /// Creates a new payment order repository.
+        /// </summary>
+        /// <param name="appDbContext">The database context used by the repository.</param>
         public PaymentOrderRepository(AppDbContext appDbContext) : base(appDbContext)
         {
             
@@ -20,6 +24,13 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Repositories
             
         }
 
+        /// <summary>
+        /// Gets the payment order for the specified order code and user.
+        /// </summary>
+        /// <param name="orderCode">The order code to match.</param>
+        /// <param name="userId">The user identifier to match.</param>
+        /// <param name="cancellationToken">A token used to cancel the operation.</param>
+        /// <returns>The matching payment order, or <c>null</c> if no match is found.</returns>
         public async Task<PaymentOrder?> GetByOrderCodeAndUserIdAsync(long orderCode, Guid userId, CancellationToken cancellationToken = default)
         {
             //Tìm đơn thanh toán theo mã đơn và mã người dùng 
@@ -28,6 +39,12 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Repositories
             return order;
         }
 
+        /// <summary>
+        /// Gets the payment order with the specified order code.
+        /// </summary>
+        /// <param name="orderCode">The order code to match.</param>
+        /// <param name="cancellationToken">A token used to cancel the operation.</param>
+        /// <returns>The first payment order with the specified order code, or <c>null</c> if no match is found.</returns>
         public async Task<PaymentOrder?> GetByOrderCodeAsync(long orderCode, CancellationToken cancellationToken = default)
         {
             //Tìm đơn thanh toán theo mã đơn 

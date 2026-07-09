@@ -1,4 +1,4 @@
-﻿using AiFashionStudio.Platform.Domain.Identity.Entities;
+using AiFashionStudio.Platform.Domain.Identity.Entities;
 using AiFashionStudio.Platform.Domain.Payment;
 using AiFashionStudio.Platform.Domain.Payment.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +8,10 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Configurations;
 
 public class PaymentOrderConfiguration : IEntityTypeConfiguration<PaymentOrder>
 {
+    /// <summary>
+    /// Configures the PaymentOrder entity mapping.
+    /// </summary>
+    /// <param name="builder">The entity type builder used to configure the PaymentOrder model.</param>
     public void Configure(EntityTypeBuilder<PaymentOrder> builder)
     {
         builder.ToTable("payment_orders");

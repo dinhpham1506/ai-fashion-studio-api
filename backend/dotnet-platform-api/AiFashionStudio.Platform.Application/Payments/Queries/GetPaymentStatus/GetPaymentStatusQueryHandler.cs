@@ -1,4 +1,4 @@
-﻿using AiFashionStudio.Platform.Application.Common.Dtos;
+using AiFashionStudio.Platform.Application.Common.Dtos;
 using AiFashionStudio.Platform.Application.Common.Exceptions;
 using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
 using MediatR;
@@ -15,11 +15,21 @@ namespace AiFashionStudio.Platform.Application.Payments.Queries.GetPaymentStatus
     {
         private readonly IPaymentOrderRepository _paymentOrderRepository;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GetPaymentStatusQueryHandler"/> class.
+        /// </summary>
         public GetPaymentStatusQueryHandler(IPaymentOrderRepository paymentOrderRepository)
         {
             _paymentOrderRepository = paymentOrderRepository;
         }
 
+        /// <summary>
+        /// Gets the payment status for the specified order.
+        /// </summary>
+        /// <param name="query">The payment lookup criteria.</param>
+        /// <param name="cancellationToken">A token to cancel the operation.</param>
+        /// <returns>The payment status response for the matching order.</returns>
+        /// <exception cref="NotFoundException">Thrown when no payment order matches the specified order code and user ID.</exception>
         public async Task<PaymentStatusResponse> Handle(GetPaymentStatusQuery query, CancellationToken cancellationToken)
         {
             var order = await _paymentOrderRepository.GetByOrderCodeAndUserIdAsync(query.OrderCode, query.UserId, cancellationToken)

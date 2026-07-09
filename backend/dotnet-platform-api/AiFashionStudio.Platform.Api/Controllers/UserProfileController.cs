@@ -17,11 +17,18 @@ public class UserProfileController : ControllerBase
 {
     private readonly ISender _sender;
 
+    /// <summary>
+    /// Creates a user profile controller.
+    /// </summary>
     public UserProfileController(ISender sender)
     {
         _sender = sender;
     }
 
+    /// <summary>
+    /// Gets the current user's profile.
+    /// </summary>
+    /// <returns>An action result containing the user's profile, or an unauthorized response if the token is invalid.</returns>
     [HttpGet("profile")]
     public async Task<IActionResult> GetProfile(CancellationToken cancellationToken)
     {
@@ -34,6 +41,11 @@ public class UserProfileController : ControllerBase
         return Ok(ApiResponse.Ok(result));
     }
 
+    /// <summary>
+    /// Updates the current user's profile.
+    /// </summary>
+    /// <param name="request">The profile values to store.</param>
+    /// <returns>The updated profile result.</returns>
     [HttpPatch("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request, CancellationToken cancellationToken)
     {
@@ -47,6 +59,11 @@ public class UserProfileController : ControllerBase
         return Ok(ApiResponse.Ok(result, "Profile updated"));
     }
 
+    /// <summary>
+    /// Uploads the current user's avatar image.
+    /// </summary>
+    /// <param name="file">The uploaded avatar file.</param>
+    /// <returns>An <see cref="IActionResult"/> containing the upload result, or an error response if the token is invalid or the file is missing.</returns>
     [HttpPost("avatar")]
     public async Task<IActionResult> UploadAvatar(IFormFile file, CancellationToken cancellationToken)
     {
@@ -72,6 +89,11 @@ public class UserProfileController : ControllerBase
         return Ok(ApiResponse.Ok(result, "Avatar uploaded"));
     }
 
+    /// <summary>
+    /// Extracts the current user's ID from the JWT subject claim.
+    /// </summary>
+    /// <param name="userId">The parsed user ID, or <see cref="Guid.Empty"/> when parsing fails.</param>
+    /// <returns><c>true</c> if the subject claim contains a valid user ID, <c>false</c> otherwise.</returns>
     private bool TryGetUserId(out Guid userId)
     {
         userId = Guid.Empty;

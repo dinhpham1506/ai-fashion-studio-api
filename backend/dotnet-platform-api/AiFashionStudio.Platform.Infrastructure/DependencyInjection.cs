@@ -14,6 +14,10 @@ namespace AiFashionStudio.Platform.Infrastructure;
 
 public static class DependencyInjection
 {
+    /// <summary>
+    /// Registers infrastructure services, repositories, and configuration options.
+    /// </summary>
+    /// <returns>The service collection after the infrastructure registrations are added.</returns>
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<AppDbContext>(options =>

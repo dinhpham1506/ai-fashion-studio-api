@@ -11,6 +11,9 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence;
 
 public static class DatabaseSeeder
 {
+    /// <summary>
+    /// Seeds the database with initial roles, users, about-us content, payment orders, and an invoice.
+    /// </summary>
     public static async Task SeedAsync(AppDbContext context, IPasswordHasher passwordHasher)
     {
         // 1. Seed Roles

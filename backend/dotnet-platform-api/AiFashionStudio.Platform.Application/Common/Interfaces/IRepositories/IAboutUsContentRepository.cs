@@ -8,10 +8,18 @@ namespace AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories
 {
     public interface IAboutUsContentRepository : IBaseRepository<AboutUsContent>
     {
-        // Lấy các section PUBLISHED cho trang public
+        /// <summary>
+/// Gets the published About Us sections.
+/// </summary>
+/// <returns>The published About Us content entries.</returns>
         Task<List<AboutUsContent>> GetPublishedAsync(CancellationToken cancellationToken = default);
 
-        // Tìm section theo key — dùng cho upsert
+        /// <summary>
+/// Gets an about-us content entry by section key.
+/// </summary>
+/// <param name="sectionKey">The section key to match.</param>
+/// <param name="cancellationToken">A token that supports cooperative cancellation.</param>
+/// <returns>The matching about-us content entry, or null if no match is found.</returns>
         Task<AboutUsContent?> GetBySectionKeyAsync(string sectionKey, CancellationToken cancellationToken = default);
     }
 }

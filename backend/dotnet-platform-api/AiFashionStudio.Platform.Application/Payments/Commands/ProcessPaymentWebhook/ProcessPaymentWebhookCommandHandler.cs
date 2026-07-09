@@ -1,4 +1,4 @@
-﻿using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
+using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
 using AiFashionStudio.Platform.Application.Common.Interfaces.IServices;
 using AiFashionStudio.Platform.Application.Invoices.Commands.CreateInvoice;
 using AiFashionStudio.Platform.Application.Invoices.Commands.GenerateInvoicePdf;
@@ -19,6 +19,9 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.ProcessPaymentW
         private readonly ISender _sender;
         private ILogger<ProcessPaymentWebhookCommandHandler> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ProcessPaymentWebhookCommandHandler"/> class.
+        /// </summary>
         public ProcessPaymentWebhookCommandHandler(IPaymentGatewayService paymentGatewayService,
             IPaymentOrderRepository paymentOrderRepository,
             ISender sender,
@@ -29,6 +32,11 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.ProcessPaymentW
             _sender = sender;
             _logger = logger;
         }
+        /// <summary>
+        /// Processes a payment webhook and marks the matching order as paid when the payment is successful and the amount matches.
+        /// </summary>
+        /// <param name="command">The webhook payload to process.</param>
+        /// <param name="cancellationToken">A token to cancel the operation.</param>
         public async Task Handle(ProcessPaymentWebhookCommand command, CancellationToken cancellationToken)
         {
             var webhook = await _paymentGatewayService.VerifyWebhookAsync(command.RawBody);

@@ -1,4 +1,4 @@
-﻿using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
+using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
 using AiFashionStudio.Platform.Domain.Invoice.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -15,12 +15,20 @@ namespace AiFashionStudio.Platform.Application.Invoices.Commands.CreateInvoice
         private readonly IInvoiceRepository _invoiceRepository;
         private readonly ILogger<CreateInvoiceCommandHandler> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CreateInvoiceCommandHandler"/> class.
+        /// </summary>
         public CreateInvoiceCommandHandler(IInvoiceRepository invoiceRepository, ILogger<CreateInvoiceCommandHandler> logger)
         {
             _invoiceRepository = invoiceRepository;
             _logger = logger;
         }
 
+        /// <summary>
+        /// Creates an invoice for the specified order.
+        /// </summary>
+        /// <param name="command">The invoice creation request.</param>
+        /// <returns>The created invoice identifier, or null if an invoice already exists for the order or creation fails.</returns>
         public async Task<Guid?> Handle(CreateInvoiceCommand command, CancellationToken cancellationToken)
         {
             try
@@ -55,6 +63,10 @@ namespace AiFashionStudio.Platform.Application.Invoices.Commands.CreateInvoice
             }
 
         }
+        /// <summary>
+        /// Generates the next invoice number for the current UTC date.
+        /// </summary>
+        /// <returns>The invoice number in <c>INVyyyMMdd####</c> format.</returns>
         private async Task<string> GenerateInvoiceNumberAsync(CancellationToken cancellationToken)
         {
             var today = DateOnly.FromDateTime(DateTime.UtcNow);

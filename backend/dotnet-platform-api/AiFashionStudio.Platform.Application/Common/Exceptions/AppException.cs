@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 
 namespace AiFashionStudio.Platform.Application.Common.Exceptions;
 
@@ -50,6 +50,11 @@ public class UnauthorizedException : AppException
 // lỗi xảy ra khi người dùng không có quyền truy cập vào tài nguyên
 public class ForbiddenException : AppException
 {
+    /// <summary>
+    /// Creates an exception for a forbidden access error.
+    /// </summary>
+    /// <param name="code">The error code.</param>
+    /// <param name="message">The error message.</param>
     public ForbiddenException(string code, string message)
         : base(message, new[] { new AppError(code, message) })
     {
@@ -58,6 +63,11 @@ public class ForbiddenException : AppException
 }
 public class NotFoundException : AppException
 {
+    /// <summary>
+    /// Creates an exception for a missing resource.
+    /// </summary>
+    /// <param name="code">The application error code.</param>
+    /// <param name="message">The error message.</param>
     public NotFoundException(string code, string message) : base(message, new[] { new AppError(code, message) })
     {
 

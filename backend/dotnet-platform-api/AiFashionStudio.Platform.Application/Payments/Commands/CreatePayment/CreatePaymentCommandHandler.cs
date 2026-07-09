@@ -1,4 +1,4 @@
-﻿using AiFashionStudio.Platform.Application.Common.Dtos;
+using AiFashionStudio.Platform.Application.Common.Dtos;
 using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
 using AiFashionStudio.Platform.Application.Common.Interfaces.IServices;
 using AiFashionStudio.Platform.Application.Common.Models;
@@ -17,11 +17,20 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.CreatePayment
     {
         private readonly IPaymentOrderRepository _paymentOrderRepository;
         private readonly IPaymentGatewayService _gatewayService;
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CreatePaymentCommandHandler"/> class.
+        /// </summary>
         public CreatePaymentCommandHandler(IPaymentOrderRepository paymentOrderRepository, IPaymentGatewayService paymentGatewayService)
         {
             _paymentOrderRepository = paymentOrderRepository;
             _gatewayService = paymentGatewayService;
         }
+        /// <summary>
+        /// Creates a payment order and returns the payment link details.
+        /// </summary>
+        /// <param name="command">The payment details and user identifier.</param>
+        /// <param name="cancellationToken">A token to cancel the operation.</param>
+        /// <returns>The created order code, checkout URL, QR code, amount, and order status.</returns>
         public async Task<CreatePaymentLinkResponse> Handle(CreatePaymentCommand command, CancellationToken cancellationToken)
         {
             // Sinh orderCode:

@@ -6,6 +6,10 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Configurations;
 
 public class AboutUsContentConfiguration : IEntityTypeConfiguration<AboutUsContent>
 {
+    /// <summary>
+    /// Configures the Entity Framework Core mapping for <see cref="AboutUsContent"/>.
+    /// </summary>
+    /// <param name="builder">The entity type builder used to configure the mapping.</param>
     public void Configure(EntityTypeBuilder<AboutUsContent> builder)
     {
         builder.ToTable("about_us_contents");

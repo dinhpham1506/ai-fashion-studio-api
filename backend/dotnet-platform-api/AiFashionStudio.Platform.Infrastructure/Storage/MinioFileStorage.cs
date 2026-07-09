@@ -13,6 +13,10 @@ namespace AiFashionStudio.Platform.Infrastructure.Storage
         private readonly IMinioClient _client;
         private readonly string _publicBaseUrl;
 
+        /// <summary>
+        /// Creates a MinIO-backed file storage instance.
+        /// </summary>
+        /// <param name="options">The configured MinIO settings.</param>
         public MinioFileStorage(IOptions<MinioSettings> options)
         {
             var settings = options.Value;
@@ -24,6 +28,15 @@ namespace AiFashionStudio.Platform.Infrastructure.Storage
                 .Build();
         }
 
+        /// <summary>
+        /// Uploads content to a bucket and returns its public URL.
+        /// </summary>
+        /// <param name="bucket">The target bucket name.</param>
+        /// <param name="objectName">The object name to store in the bucket.</param>
+        /// <param name="content">The byte content to upload.</param>
+        /// <param name="contentType">The MIME type of the uploaded content.</param>
+        /// <param name="cancellationToken">A token that cancels the upload operation.</param>
+        /// <returns>The public URL of the stored object.</returns>
         public async Task<string> UploadAsync(string bucket, string objectName, byte[] content, string contentType, CancellationToken cancellationToken = default)
         {
             var exists = await _client.BucketExistsAsync(

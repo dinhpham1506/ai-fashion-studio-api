@@ -1,4 +1,4 @@
-﻿using AiFashionStudio.Platform.Application.Common.Exceptions;
+using AiFashionStudio.Platform.Application.Common.Exceptions;
 using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
 using AiFashionStudio.Platform.Application.Common.Interfaces.IServices;
 using MediatR;
@@ -11,6 +11,9 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.CancelPayment
         private readonly IPaymentGatewayService _paymentGatewayService;
         private readonly IPaymentOrderRepository _paymentOrderRepository;
 
+        /// <summary>
+        /// Creates a new instance of the handler.
+        /// </summary>
         public CancelPaymentCommandHandler(IPaymentGatewayService paymentGatewayService,
             IPaymentOrderRepository paymentOrderRepository)
         {
@@ -18,6 +21,13 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.CancelPayment
             _paymentOrderRepository = paymentOrderRepository;
         }
 
+        /// <summary>
+        /// Cancels a pending payment order.
+        /// </summary>
+        /// <param name="command">The cancellation command containing the order code and user identifier.</param>
+        /// <param name="cancellationToken">A token to cancel the operation.</param>
+        /// <exception cref="NotFoundException">Thrown when the payment order cannot be found.</exception>
+        /// <exception cref="ConflictException">Thrown when the payment order is not pending.</exception>
         public async Task Handle(CancelPaymentCommand command, CancellationToken cancellationToken)
         {
             var order = await _paymentOrderRepository.GetByOrderCodeAndUserIdAsync(command.OrderCode, command.UserId, cancellationToken) ?? throw new NotFoundException("PAYMENT_NOT_FOUND", "Payment not found");

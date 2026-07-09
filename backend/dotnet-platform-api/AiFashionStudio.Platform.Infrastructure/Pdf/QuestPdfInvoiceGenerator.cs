@@ -7,8 +7,16 @@ namespace AiFashionStudio.Platform.Infrastructure.Pdf
 {
     public sealed class QuestPdfInvoiceGenerator : IInvoicePdfGenerator
     {
-        static QuestPdfInvoiceGenerator() => QuestPDF.Settings.License = LicenseType.Community;
+        /// <summary>
+/// Sets QuestPDF to use the community license.
+/// </summary>
+static QuestPdfInvoiceGenerator() => QuestPDF.Settings.License = LicenseType.Community;
 
+        /// <summary>
+        /// Generates a PDF invoice for the specified invoice.
+        /// </summary>
+        /// <param name="invoice">The invoice to render.</param>
+        /// <returns>The generated PDF bytes.</returns>
         public byte[] Generate(Invoice invoice)
         {
             return Document.Create(container =>
