@@ -1,4 +1,5 @@
 using System.Text;
+using AiFashionStudio.Platform.Application.Common.Interfaces.IServices;
 using AiFashionStudio.Platform.Api.Middlewares;
 using AiFashionStudio.Platform.Application;
 using AiFashionStudio.Platform.Infrastructure;
@@ -45,6 +46,21 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// CORS cho frontend. Origin lấy từ config "Cors:AllowedOrigins" — thêm origin mới
+// (ngrok, vercel...) chỉ cần sửa appsettings, không cần sửa code.
+// AllowCredentials bắt buộc để browser chấp nhận cookie refresh_token khi cross-origin.
+const string FrontendCorsPolicy = "Frontend";
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:5173", "http://localhost:3000" };
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+        policy.WithOrigins(corsOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials());
+});
+
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
 
 builder.Services
@@ -61,7 +77,10 @@ builder.Services
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromSeconds(30)
+            ClockSkew = TimeSpan.FromSeconds(30),
+            // MapInboundClaims = false nên claim trong JWT giữ nguyên tên gốc ("role", "sub"...)
+            // — phải chỉ rõ RoleClaimType, nếu không [Authorize(Roles=...)]/User.IsInRole không nhận role
+            RoleClaimType = "role"
         };
     });
 
@@ -72,7 +91,9 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
     dbContext.Database.Migrate();
+    await DatabaseSeeder.SeedAsync(dbContext, passwordHasher);
 }
 
 // OpenAPI/Swagger (enabled for all environments so it is testable)
@@ -80,6 +101,8 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+app.UseCors(FrontendCorsPolicy);
 
 app.UseAuthentication();
 app.UseAuthorization();

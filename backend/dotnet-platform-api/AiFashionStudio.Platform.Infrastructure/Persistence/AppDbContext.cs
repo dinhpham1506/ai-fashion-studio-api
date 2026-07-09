@@ -1,4 +1,7 @@
+using AiFashionStudio.Platform.Domain.Content.Entities;
 using AiFashionStudio.Platform.Domain.Identity.Entities;
+using AiFashionStudio.Platform.Domain.Invoice.Entities;
+using AiFashionStudio.Platform.Domain.Payment.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace AiFashionStudio.Platform.Infrastructure.Persistence;
@@ -19,6 +22,12 @@ public class AppDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public DbSet<PasswordResetByOtp> PasswordResetByOtps => Set<PasswordResetByOtp>();
+
+    public DbSet<PaymentOrder> PaymentOrders => Set<PaymentOrder>();
+
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+
+    public DbSet<AboutUsContent> AboutUsContents => Set<AboutUsContent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

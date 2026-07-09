@@ -67,4 +67,19 @@ public class User : UpdatableEntity
         PasswordHash = newPasswordHash;
         Update();
     }
+
+    // Cập nhật hồ sơ cá nhân (tên, số điện thoại)
+    public void UpdateProfile(string fullName, string? phone)
+    {
+        FullName = fullName;
+        Phone = phone;
+        Update();
+    }
+
+    // Đổi ảnh đại diện sau khi upload thành công
+    public void ChangeAvatar(string avatarUrl)
+    {
+        AvatarUrl = avatarUrl;
+        Update();
+    }
 }

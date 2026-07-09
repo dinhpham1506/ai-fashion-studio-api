@@ -1,4 +1,6 @@
-﻿namespace AiFashionStudio.Platform.Application.Common.Exceptions;
+﻿using System.Runtime.CompilerServices;
+
+namespace AiFashionStudio.Platform.Application.Common.Exceptions;
 
 public record AppError(string Code, string Message, string? Field = null);
 
@@ -51,5 +53,13 @@ public class ForbiddenException : AppException
     public ForbiddenException(string code, string message)
         : base(message, new[] { new AppError(code, message) })
     {
+    }
+
+}
+public class NotFoundException : AppException
+{
+    public NotFoundException(string code, string message) : base(message, new[] { new AppError(code, message) })
+    {
+
     }
 }
