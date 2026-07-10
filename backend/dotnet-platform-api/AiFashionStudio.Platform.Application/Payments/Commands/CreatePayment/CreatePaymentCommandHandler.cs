@@ -45,7 +45,9 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.CreatePayment
 
             await _paymentOrderRepository.AddAsync(order, cancellationToken);
 
-            var link = await _gatewayService.CreatePaymentLinkAsync(new PaymentLinkRequest(orderCode, command.Amount, command.Description, ReturnUrl: "", CancelUrl: ""));
+            var link = await _gatewayService.CreatePaymentLinkAsync(
+                new PaymentLinkRequest(orderCode, command.Amount, command.Description, ReturnUrl: "", CancelUrl: ""),
+                cancellationToken);
 
             order.AttachPaymentLink(link.PaymentLink);
             await _paymentOrderRepository.SaveChangesAsync(cancellationToken);

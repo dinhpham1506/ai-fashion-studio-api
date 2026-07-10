@@ -12,4 +12,6 @@ public interface IFileStorage
 /// <param name="cancellationToken">A token that can be used to cancel the operation.</param>
 /// <returns>The public URL of the uploaded file.</returns>
     Task<string> UploadAsync(string bucket, string objectName, byte[] content, string contentType, CancellationToken cancellationToken = default);
+
+    Task<string> GetTemporaryUrlAsync(string bucket, string objectName, TimeSpan expiresIn, CancellationToken cancellationToken = default);
 }

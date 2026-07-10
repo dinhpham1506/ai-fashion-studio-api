@@ -14,6 +14,6 @@ public class CreatePaymentLinkCommandValidator : AbstractValidator<CreatePayment
 
         RuleFor(command => command.Description)
             .NotEmpty().WithErrorCode("DESCRIPTION_REQUIRED").WithMessage("Description is required")
-            .MaximumLength(25).WithErrorCode("DESCRIPTION_TOO_LONG").WithMessage("Description must be 25 characters or fewer");
+            .MaximumLength(256).WithErrorCode("DESCRIPTION_TOO_LONG").WithMessage("Description must be 256 characters or fewer");
     }
 }

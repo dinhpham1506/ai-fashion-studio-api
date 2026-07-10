@@ -19,12 +19,7 @@ Task<PaymentLinkResponse> CreatePaymentLinkAsync(PaymentLinkRequest request, Can
 /// <returns>The payment link status.</returns>
         Task<string> GetPaymentLinkStatusAsync(long orderCode, CancellationToken cancellationToken = default);
 
-        /// <summary>
-/// Cancels a payment link for the specified order code.
-/// </summary>
-/// <param name="orderCode">The order code of the payment link to cancel.</param>
-/// <param name="reason">The optional cancellation reason.</param>
-Task CancelPaymentLinkAsync(long orderCode, string? reason = null, CancellationToken cancellationToken = default);
+        Task CancelPaymentLinkAsync(long orderCode, string? reason = null, CancellationToken cancellationToken = default);
 
         /// <summary>
 /// Verifies an incoming webhook payload and parses its contents.

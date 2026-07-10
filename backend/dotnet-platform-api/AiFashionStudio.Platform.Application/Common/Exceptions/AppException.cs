@@ -47,6 +47,15 @@ public class UnauthorizedException : AppException
     {
     }
 }
+
+public class WebhookVerificationException : AppException
+{
+    public WebhookVerificationException(string code, string message)
+        : base(message, new[] { new AppError(code, message) })
+    {
+    }
+}
+
 // lỗi xảy ra khi người dùng không có quyền truy cập vào tài nguyên
 public class ForbiddenException : AppException
 {

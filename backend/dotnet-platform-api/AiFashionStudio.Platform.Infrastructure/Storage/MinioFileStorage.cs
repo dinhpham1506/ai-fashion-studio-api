@@ -1,7 +1,9 @@
 using AiFashionStudio.Platform.Application.Common.Interfaces.IServices;
+using Minio.Exceptions;
 using Microsoft.Extensions.Options;
 using Minio;
 using Minio.DataModel.Args;
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -44,7 +46,14 @@ namespace AiFashionStudio.Platform.Infrastructure.Storage
 
             if (!exists)
             {
-                await _client.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucket), cancellationToken);
+                try
+                {
+                    await _client.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucket), cancellationToken);
+                }
+                catch (MinioException ex) when (IsBucketAlreadyExists(ex))
+                {
+                    // Concurrent upload created the bucket after BucketExistsAsync returned false.
+                }
             }
 
             using var stream = new MemoryStream(content);
@@ -57,5 +66,16 @@ namespace AiFashionStudio.Platform.Infrastructure.Storage
 
             return $"{_publicBaseUrl}/{bucket}/{objectName}";
         }
+
+        public Task<string> GetTemporaryUrlAsync(string bucket, string objectName, TimeSpan expiresIn, CancellationToken cancellationToken = default)
+            => _client.PresignedGetObjectAsync(new PresignedGetObjectArgs()
+                .WithBucket(bucket)
+                .WithObject(objectName)
+                .WithExpiry((int)expiresIn.TotalSeconds));
+
+        private static bool IsBucketAlreadyExists(MinioException exception)
+            => exception.Message.Contains("BucketAlready", StringComparison.OrdinalIgnoreCase)
+            || exception.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase)
+            || exception.Message.Contains("already owned", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -15,6 +15,8 @@ public record UpdateProfileRequest(string FullName, string? Phone);
 [Authorize]
 public class UserProfileController : ControllerBase
 {
+    private const long MaxAvatarFileSizeBytes = 5 * 1024 * 1024;
+
     private readonly ISender _sender;
 
     /// <summary>
@@ -77,6 +79,13 @@ public class UserProfileController : ControllerBase
             return BadRequest(ApiResponse.Fail(
                 "Avatar file is required",
                 new[] { new ApiError("AVATAR_FILE_REQUIRED", "Avatar file is required") }));
+        }
+
+        if (file.Length > MaxAvatarFileSizeBytes)
+        {
+            return BadRequest(ApiResponse.Fail(
+                "Avatar file must be 5MB or smaller",
+                new[] { new ApiError("AVATAR_FILE_TOO_LARGE", "Avatar file must be 5MB or smaller") }));
         }
 
         using var memoryStream = new MemoryStream();

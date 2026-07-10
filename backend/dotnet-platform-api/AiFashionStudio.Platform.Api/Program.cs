@@ -93,7 +93,12 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
     dbContext.Database.Migrate();
-    await DatabaseSeeder.SeedAsync(dbContext, passwordHasher);
+
+    var seedDemoData = app.Configuration.GetValue<bool>("Seeding:EnableDemoData");
+    if (seedDemoData && !app.Environment.IsProduction())
+    {
+        await DatabaseSeeder.SeedAsync(dbContext, passwordHasher);
+    }
 }
 
 // OpenAPI/Swagger (enabled for all environments so it is testable)

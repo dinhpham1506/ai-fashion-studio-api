@@ -12,14 +12,13 @@ public class InvoiceItemConfiguration : IEntityTypeConfiguration<InvoiceItem>
     public void Configure(EntityTypeBuilder<InvoiceItem> builder)
     {
         builder.ToTable("invoice_items");
-        builder.HasKey(item => item.Id);
+        builder.HasKey(invoiceItem => invoiceItem.Id);
 
-        builder.Property(item => item.ProductNameSnapshot).HasColumnName("product_name_snapshot").IsRequired();
-        builder.Property(item => item.VariantSnapshot).HasColumnName("variant_snapshot");
-        builder.Property(item => item.Quantity).HasColumnName("quantity");
-        builder.Property(item => item.UnitPrice).HasColumnName("unit_price");
-        builder.Property(item => item.CreatedAt).HasColumnName("created_at");
-
-        builder.Ignore(item => item.TotalPrice);
+        builder.Property(invoiceItem => invoiceItem.ProductNameSnapshot).HasColumnName("product_name_snapshot").IsRequired();
+        builder.Property(invoiceItem => invoiceItem.VariantSnapshot).HasColumnName("variant_snapshot");
+        builder.Property(invoiceItem => invoiceItem.Quantity).HasColumnName("quantity");
+        builder.Property(invoiceItem => invoiceItem.UnitPrice).HasColumnName("unit_price");
+        builder.Property(invoiceItem => invoiceItem.CreatedAt).HasColumnName("created_at");
+        builder.Property<Guid>("InvoiceId").HasColumnName("invoice_id");
     }
 }

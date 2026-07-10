@@ -1,4 +1,5 @@
-using AiFashionStudio.Platform.Api.Common;
+﻿using AiFashionStudio.Platform.Api.Common;
+using AiFashionStudio.Platform.Application.Common.Exceptions;
 using AiFashionStudio.Platform.Application.Payments.Commands;
 using AiFashionStudio.Platform.Application.Payments.Commands.CancelPayment;
 using AiFashionStudio.Platform.Application.Payments.Commands.ProcessPaymentWebhook;
@@ -55,8 +56,19 @@ public class PaymentsController : ControllerBase
         using var reader = new StreamReader(Request.Body);
         var rawBody = await reader.ReadToEndAsync(cancellationToken);
 
-        await _sender.Send(new ProcessPaymentWebhookCommand(rawBody), cancellationToken);
-        return Ok(ApiResponse.Ok("Webhook processed"));
+        try
+        {
+            await _sender.Send(new ProcessPaymentWebhookCommand(rawBody), cancellationToken);
+            return Ok(ApiResponse.Ok("Webhook processed"));
+        }
+        catch (WebhookVerificationException exception)
+        {
+            var errors = exception.Errors
+                .Select(error => new ApiError(error.Code, error.Message, error.Field))
+                .ToArray();
+
+            return BadRequest(ApiResponse.Fail(exception.Message, errors));
+        }
     }
 
     /// <summary>

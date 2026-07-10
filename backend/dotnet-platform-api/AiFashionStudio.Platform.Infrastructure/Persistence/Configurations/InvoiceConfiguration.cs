@@ -1,4 +1,6 @@
 using AiFashionStudio.Platform.Domain.Invoice.Entities;
+using AiFashionStudio.Platform.Domain.Identity.Entities;
+using AiFashionStudio.Platform.Domain.Payment.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -27,6 +29,16 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
 
         builder.HasIndex(invoice => invoice.OrderId).IsUnique();
         builder.HasIndex(invoice => invoice.InvoiceNumber).IsUnique();
+
+        builder.HasOne<PaymentOrder>()
+            .WithMany()
+            .HasForeignKey(invoice => invoice.PaymentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(invoice => invoice.CustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(invoice => invoice.Items)
             .WithOne()

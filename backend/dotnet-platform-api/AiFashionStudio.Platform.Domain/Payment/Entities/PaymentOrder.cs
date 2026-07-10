@@ -48,10 +48,9 @@ public class PaymentOrder : UpdatableEntity
 /// </returns>
     public bool IsPending() => Status == PaymentStatus.Pending;
 
-    /// <summary>
-    /// Attaches a payment link to the order.
-    /// </summary>
-    /// <param name="paymentLinkId">The payment link identifier.</param>
+    public bool IsCancellationRequested() => Status == PaymentStatus.CancelRequested;
+
+    //Gắn link sau khi tạo PayOS
     public void  AttachPaymentLink(string paymentLinkId)
     {
         PaymentLinkId = paymentLinkId;
@@ -75,12 +74,18 @@ public class PaymentOrder : UpdatableEntity
         Update();
     }
 
-    /// <summary>
-    /// Marks the payment order as cancelled.
-    /// </summary>
-    /// <remarks>
-    /// Records the cancellation time and updates the entity state.
-    /// </remarks>
+    // cập nhật khi người dùng hủy thanh toán
+    public void MarkCancellationRequested()
+    {
+        if (Status != PaymentStatus.Pending)
+        {
+            return;
+        }
+
+        Status = PaymentStatus.CancelRequested;
+        Update();
+    }
+
     public void Cancel()
     {
         Status = PaymentStatus.Cancelled;

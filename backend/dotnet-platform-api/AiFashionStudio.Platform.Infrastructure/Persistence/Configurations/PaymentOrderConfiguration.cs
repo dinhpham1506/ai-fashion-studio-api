@@ -20,7 +20,7 @@ public class PaymentOrderConfiguration : IEntityTypeConfiguration<PaymentOrder>
         builder.Property(order => order.UserId).HasColumnName("user_id");
         builder.Property(order => order.OrderCode).HasColumnName("order_code");
         builder.Property(order => order.Amount).HasColumnName("amount");
-        builder.Property(order => order.Description).HasColumnName("description").HasMaxLength(25).IsRequired();
+        builder.Property(order => order.Description).HasColumnName("description").HasMaxLength(256).IsRequired();
         builder.Property(order => order.PaymentLinkId).HasColumnName("payment_link_id");
         builder.Property(order => order.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
         builder.Property(order => order.GatewayReference).HasColumnName("gateway_reference");

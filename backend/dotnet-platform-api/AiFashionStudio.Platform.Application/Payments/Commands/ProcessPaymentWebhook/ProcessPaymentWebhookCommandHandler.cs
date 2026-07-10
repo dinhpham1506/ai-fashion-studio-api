@@ -67,15 +67,20 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.ProcessPaymentW
 
             await _paymentOrderRepository.SaveChangesAsync(cancellationToken);
 
-            // Invoice hook: sau PAID, không throw, không ảnh hưởng response webhook —
-            // CreateInvoiceCommandHandler tự bắt lỗi và trả null nếu tạo invoice thất bại
-            var invoiceId = await _sender.Send(
-                new CreateInvoiceCommand(order.Id, order.Id, order.UserId, order.Description, order.Amount),
-                cancellationToken);
-
-            if (invoiceId is not null)
+            try
             {
-                await _sender.Send(new GenerateInvoicePdfCommand(invoiceId.Value), cancellationToken);
+                var invoiceId = await _sender.Send(
+                    new CreateInvoiceCommand(order.Id, order.Id, order.UserId, order.Description, order.Amount),
+                    cancellationToken);
+
+                if (invoiceId is not null)
+                {
+                    await _sender.Send(new GenerateInvoicePdfCommand(invoiceId.Value), cancellationToken);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Invoice hook failed for paid order {OrderId}", order.Id);
             }
         }
     }

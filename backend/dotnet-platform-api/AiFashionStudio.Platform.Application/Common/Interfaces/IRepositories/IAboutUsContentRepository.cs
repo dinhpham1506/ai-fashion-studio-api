@@ -1,4 +1,5 @@
 using AiFashionStudio.Platform.Domain.Content.Entities;
+using AiFashionStudio.Platform.Domain.Content.Enums;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -21,5 +22,14 @@ namespace AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories
 /// <param name="cancellationToken">A token that supports cooperative cancellation.</param>
 /// <returns>The matching about-us content entry, or null if no match is found.</returns>
         Task<AboutUsContent?> GetBySectionKeyAsync(string sectionKey, CancellationToken cancellationToken = default);
+
+        Task<AboutUsContent> UpsertSectionAsync(
+            string sectionKey,
+            string title,
+            string content,
+            string? imageUrl,
+            AboutUsStatus status,
+            Guid updatedBy,
+            CancellationToken cancellationToken = default);
     }
 }

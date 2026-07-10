@@ -31,5 +31,13 @@ namespace AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories
 /// <param name="cancellationToken">A token that can be used to cancel the operation.</param>
 /// <returns>The number of invoices issued on the specified date.</returns>
         Task<int> CountIssuedTodayAsync(DateOnly issuedDate, CancellationToken cancellationToken = default);
+
+        Task<Invoice> IssueForOrderAsync(
+            Guid orderId,
+            Guid paymentId,
+            Guid customerId,
+            string description,
+            decimal amount,
+            CancellationToken cancellationToken = default);
     }
 }

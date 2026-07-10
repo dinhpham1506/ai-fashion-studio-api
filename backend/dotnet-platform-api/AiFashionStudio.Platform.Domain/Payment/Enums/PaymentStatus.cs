@@ -9,6 +9,7 @@ namespace AiFashionStudio.Platform.Domain.Payment.Enums
     public enum PaymentStatus
     {
         Pending,
+        CancelRequested,
         Paid,
         Cancelled,
         Expired

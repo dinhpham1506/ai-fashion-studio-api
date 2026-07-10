@@ -1,6 +1,5 @@
 using AiFashionStudio.Platform.Application.Common.Dtos;
 using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
-using AiFashionStudio.Platform.Domain.Content.Entities;
 using AiFashionStudio.Platform.Domain.Content.Enums;
 using MediatR;
 using System;
@@ -34,18 +33,14 @@ namespace AiFashionStudio.Platform.Application.Contents.Commands.UpsertAboutUsSe
             var sectionKey = command.SectionKey.Trim().ToUpperInvariant();
             var status = Enum.Parse<AboutUsStatus>(command.Status, ignoreCase: true);
 
-            var section = await _aboutUsContentRepository.GetBySectionKeyAsync(sectionKey, cancellationToken);
-
-            if (section is null)
-            {
-                section = AboutUsContent.Create(sectionKey, command.Title, command.Content, command.ImageUrl, status, command.UpdatedBy);
-                await _aboutUsContentRepository.AddAsync(section, cancellationToken);
-            }
-            else
-            {
-                section.UpdateContent(command.Title, command.Content, command.ImageUrl, status, command.UpdatedBy);
-                await _aboutUsContentRepository.SaveChangesAsync(cancellationToken);
-            }
+            var section = await _aboutUsContentRepository.UpsertSectionAsync(
+                sectionKey,
+                command.Title,
+                command.Content,
+                command.ImageUrl,
+                status,
+                command.UpdatedBy,
+                cancellationToken);
 
             return new UpsertAboutUsResponse(section.SectionKey, section.Status.ToString().ToUpperInvariant());
         }

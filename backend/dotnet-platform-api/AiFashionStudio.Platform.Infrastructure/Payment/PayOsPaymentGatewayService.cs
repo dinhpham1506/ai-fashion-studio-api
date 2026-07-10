@@ -2,6 +2,8 @@ using AiFashionStudio.Platform.Application.Common.Interfaces.IServices;
 using AiFashionStudio.Platform.Application.Common.Models;
 using Microsoft.Extensions.Options;
 using PayOS;
+using PayOS.Exceptions;
+using PayOS.Models;
 using PayOS.Models.V2.PaymentRequests;
 using PayOS.Models.Webhooks;
 using System;
@@ -11,7 +13,7 @@ using System.Runtime;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using AppUnauthorizedException = AiFashionStudio.Platform.Application.Common.Exceptions.UnauthorizedException;
+using WebhookVerificationException = AiFashionStudio.Platform.Application.Common.Exceptions.WebhookVerificationException;
 
 namespace AiFashionStudio.Platform.Infrastructure.Payment
 {
@@ -36,7 +38,13 @@ namespace AiFashionStudio.Platform.Infrastructure.Payment
         /// <param name="orderCode">The order code of the payment link to cancel.</param>
         public async Task CancelPaymentLinkAsync(long orderCode, string? reason = null, CancellationToken cancellationToken = default)
         {
-             await _payOSClient.PaymentRequests.CancelAsync(orderCode);
+            await _payOSClient.PaymentRequests.CancelAsync(
+                orderCode,
+                "Cancel By Customer!",
+                new RequestOptions<CancelPaymentLinkRequest>
+                {
+                    CancellationToken = cancellationToken
+                });
         }
 
         /// <summary>
@@ -87,12 +95,12 @@ namespace AiFashionStudio.Platform.Infrastructure.Payment
             }
             catch (JsonException)
             {
-                throw new AppUnauthorizedException("WEBHOOK_SIGNATURE_INVALID", "Webhook payload is invalid");
+                throw new WebhookVerificationException("WEBHOOK_SIGNATURE_INVALID", "Webhook payload is invalid");
             }
 
             if (webhook is null)
             {
-                throw new AppUnauthorizedException("WEBHOOK_SIGNATURE_INVALID", "Webhook payload is invalid");
+                throw new WebhookVerificationException("WEBHOOK_SIGNATURE_INVALID", "Webhook payload is invalid");
             }
 
             try
@@ -101,10 +109,9 @@ namespace AiFashionStudio.Platform.Infrastructure.Payment
                 var data = await _payOSClient.Webhooks.VerifyAsync(webhook);
                 return new PaymentWebhookData(data.OrderCode, data.Amount, data.Reference, data.Code == "00");
             }
-            catch (Exception)
+            catch (InvalidSignatureException)
             {
-                // InvalidSignatureException / WebhookException của SDK → quy về 401 của app
-                throw new AppUnauthorizedException("WEBHOOK_SIGNATURE_INVALID", "Webhook signature verification failed");
+                throw new WebhookVerificationException("WEBHOOK_SIGNATURE_INVALID", "Webhook signature verification failed");
             }
         }
     }

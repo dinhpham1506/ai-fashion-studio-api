@@ -78,6 +78,68 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
                     b.ToTable("about_us_contents", (string)null);
                 });
 
+            modelBuilder.Entity("AiFashionStudio.Platform.Domain.Feedback.Entities.Feedback", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("text")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("image_url");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer")
+                        .HasColumnName("rating");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("CustomerId", "OrderId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("feedbacks", (string)null);
+                });
+
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Identity.Entities.PasswordResetByOtp", b =>
                 {
                     b.Property<Guid>("Id")
@@ -334,11 +396,15 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CustomerId");
+
                     b.HasIndex("InvoiceNumber")
                         .IsUnique();
 
                     b.HasIndex("OrderId")
                         .IsUnique();
+
+                    b.HasIndex("PaymentId");
 
                     b.ToTable("invoices", (string)null);
                 });
@@ -354,7 +420,8 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
                         .HasColumnName("created_at");
 
                     b.Property<Guid>("InvoiceId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("invoice_id");
 
                     b.Property<string>("ProductNameSnapshot")
                         .IsRequired()
@@ -400,8 +467,8 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(25)
-                        .HasColumnType("character varying(25)")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
                         .HasColumnName("description");
 
                     b.Property<string>("GatewayReference")
@@ -477,6 +544,21 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("AiFashionStudio.Platform.Domain.Invoice.Entities.Invoice", b =>
+                {
+                    b.HasOne("AiFashionStudio.Platform.Domain.Identity.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AiFashionStudio.Platform.Domain.Payment.Entities.PaymentOrder", null)
+                        .WithMany()
+                        .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Invoice.Entities.InvoiceItem", b =>

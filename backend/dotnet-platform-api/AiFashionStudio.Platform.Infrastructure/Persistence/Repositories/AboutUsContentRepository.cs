@@ -2,6 +2,7 @@ using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
 using AiFashionStudio.Platform.Domain.Content.Entities;
 using AiFashionStudio.Platform.Domain.Content.Enums;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,5 +44,51 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Repositories
                 public Task<AboutUsContent?> GetBySectionKeyAsync(string sectionKey, CancellationToken cancellationToken = default)
             => _appDbContext.AboutUsContents
                 .FirstOrDefaultAsync(section => section.SectionKey == sectionKey, cancellationToken);
+
+        public async Task<AboutUsContent> UpsertSectionAsync(
+            string sectionKey,
+            string title,
+            string content,
+            string? imageUrl,
+            AboutUsStatus status,
+            Guid updatedBy,
+            CancellationToken cancellationToken = default)
+        {
+            var section = await GetBySectionKeyAsync(sectionKey, cancellationToken);
+            if (section is not null)
+            {
+                section.UpdateContent(title, content, imageUrl, status, updatedBy);
+                await SaveChangesAsync(cancellationToken);
+                return section;
+            }
+
+            section = AboutUsContent.Create(sectionKey, title, content, imageUrl, status, updatedBy);
+
+            try
+            {
+                await AddAsync(section, cancellationToken);
+                return section;
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+            {
+                _appDbContext.Entry(section).State = EntityState.Detached;
+
+                var existingSection = await GetBySectionKeyAsync(sectionKey, cancellationToken);
+                if (existingSection is null)
+                {
+                    throw;
+                }
+
+                existingSection.UpdateContent(title, content, imageUrl, status, updatedBy);
+                await SaveChangesAsync(cancellationToken);
+                return existingSection;
+            }
+        }
+
+        private static bool IsUniqueViolation(DbUpdateException exception)
+            => exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation
+            };
     }
 }

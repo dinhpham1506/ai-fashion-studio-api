@@ -67,6 +67,7 @@ public class ExceptionHandlingMiddleware
     private static HttpStatusCode MapStatusCode(AppException exception) => exception switch
     {
         AppValidationException => HttpStatusCode.BadRequest,
+        WebhookVerificationException => HttpStatusCode.BadRequest,
         NotFoundException => HttpStatusCode.NotFound,
         UnauthorizedException => HttpStatusCode.Unauthorized,
         ForbiddenException => HttpStatusCode.Forbidden,

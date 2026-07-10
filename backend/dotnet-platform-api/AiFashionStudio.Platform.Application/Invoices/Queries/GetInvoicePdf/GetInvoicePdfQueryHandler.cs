@@ -1,7 +1,9 @@
 using AiFashionStudio.Platform.Application.Common.Dtos;
 using AiFashionStudio.Platform.Application.Common.Exceptions;
 using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
+using AiFashionStudio.Platform.Application.Common.Interfaces.IServices;
 using MediatR;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,13 +12,12 @@ namespace AiFashionStudio.Platform.Application.Invoices.Queries.GetInvoicePdf
     public class GetInvoicePdfQueryHandler : IRequestHandler<GetInvoicePdfQuery, InvoicePdfResponse>
     {
         private readonly IInvoiceRepository _invoiceRepository;
+        private readonly IFileStorage _fileStorage;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="GetInvoicePdfQueryHandler"/> class.
-        /// </summary>
-        public GetInvoicePdfQueryHandler(IInvoiceRepository invoiceRepository)
+        public GetInvoicePdfQueryHandler(IInvoiceRepository invoiceRepository, IFileStorage fileStorage)
         {
             _invoiceRepository = invoiceRepository;
+            _fileStorage = fileStorage;
         }
 
         /// <summary>
@@ -45,7 +46,13 @@ namespace AiFashionStudio.Platform.Application.Invoices.Queries.GetInvoicePdf
                 throw new NotFoundException("INVOICE_PDF_NOT_READY", "Invoice PDF is not ready yet");
             }
 
-            return new InvoicePdfResponse(invoice.InvoiceNumber, invoice.PdfUrl);
+            var pdfUrl = await _fileStorage.GetTemporaryUrlAsync(
+                bucket: "invoices",
+                objectName: invoice.PdfUrl,
+                expiresIn: TimeSpan.FromMinutes(5),
+                cancellationToken: cancellationToken);
+
+            return new InvoicePdfResponse(invoice.InvoiceNumber, pdfUrl);
         }
     }
 }

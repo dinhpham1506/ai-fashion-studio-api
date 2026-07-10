@@ -1,6 +1,7 @@
 using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
 using AiFashionStudio.Platform.Domain.Invoice.Entities;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -64,5 +65,62 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Repositories
                 invoice => invoice.IssuedAt >= startOfDay && invoice.IssuedAt < startOfNextDay,
                 cancellationToken);
         }
+
+        public async Task<Invoice> IssueForOrderAsync(
+            Guid orderId,
+            Guid paymentId,
+            Guid customerId,
+            string description,
+            decimal amount,
+            CancellationToken cancellationToken = default)
+        {
+            var existingInvoice = await GetByOrderIdAsync(orderId, cancellationToken);
+            if (existingInvoice is not null)
+            {
+                return existingInvoice;
+            }
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var sequence = await CountIssuedTodayAsync(today, cancellationToken) + 1;
+
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                var invoice = Invoice.Issue(
+                    orderId,
+                    paymentId,
+                    customerId,
+                    GenerateInvoiceNumber(today, sequence + attempt),
+                    "VND",
+                    [InvoiceItem.Create(description, variantSnapshot: null, quantity: 1, unitPrice: amount)]);
+
+                try
+                {
+                    await _appDbContext.Invoices.AddAsync(invoice, cancellationToken);
+                    await _appDbContext.SaveChangesAsync(cancellationToken);
+                    return invoice;
+                }
+                catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+                {
+                    _appDbContext.Entry(invoice).State = EntityState.Detached;
+
+                    existingInvoice = await GetByOrderIdAsync(orderId, cancellationToken);
+                    if (existingInvoice is not null)
+                    {
+                        return existingInvoice;
+                    }
+                }
+            }
+
+            throw new DbUpdateException("Failed to issue invoice after retrying unique invoice numbers.");
+        }
+
+        private static string GenerateInvoiceNumber(DateOnly issuedDate, int sequence)
+            => $"INV{issuedDate:yyyMMdd}{sequence:D4}";
+
+        private static bool IsUniqueViolation(DbUpdateException exception)
+            => exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation
+            };
     }
 }
