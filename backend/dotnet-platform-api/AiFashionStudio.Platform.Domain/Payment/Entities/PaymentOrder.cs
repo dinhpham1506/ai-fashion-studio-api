@@ -1,4 +1,4 @@
-﻿using AiFashionStudio.Platform.Domain.Common;
+using AiFashionStudio.Platform.Domain.Common;
 using AiFashionStudio.Platform.Domain.Payment.Enums;
 
 namespace AiFashionStudio.Platform.Domain.Payment.Entities;
@@ -20,6 +20,14 @@ public class PaymentOrder : UpdatableEntity
 
     private PaymentOrder() { }
 
+    /// <summary>
+    /// Creates a payment order with the provided core details.
+    /// </summary>
+    /// <param name="UserId">The identifier of the user.</param>
+    /// <param name="OrderCode">The order code.</param>
+    /// <param name="amount">The payment amount.</param>
+    /// <param name="description">The order description.</param>
+    /// <returns>The created payment order.</returns>
     public static PaymentOrder Create(Guid UserId, long OrderCode, int amount, string description)
     {
         return new() 
@@ -32,17 +40,28 @@ public class PaymentOrder : UpdatableEntity
 
     }
 
-    // Kiểm tra đã thanh toán chưa
+    /// <summary>
+/// Determines whether the payment order is still pending.
+/// </summary>
+/// <returns>
+/// <c>true</c> if the order status is <see cref="PaymentStatus.Pending"/>; otherwise, <c>false</c>.
+/// </returns>
     public bool IsPending() => Status == PaymentStatus.Pending;
 
-    //Gắn link sau khi tạo PayOS
+    /// <summary>
+    /// Attaches a payment link to the order.
+    /// </summary>
+    /// <param name="paymentLinkId">The payment link identifier.</param>
     public void  AttachPaymentLink(string paymentLinkId)
     {
         PaymentLinkId = paymentLinkId;
         Update();
     }
 
-    //Idempotency: ngăn gọi lại khi đã trả thanh toán rồi
+    /// <summary>
+    /// Marks the order as paid.
+    /// </summary>
+    /// <param name="gatewayReference">The reference provided by the payment gateway.</param>
     public void MarkPaid(string gatewayReference) 
     {
         if ( Status == PaymentStatus.Paid)
@@ -56,7 +75,12 @@ public class PaymentOrder : UpdatableEntity
         Update();
     }
 
-    // cập nhật khi người dùng hủy thanh toán
+    /// <summary>
+    /// Marks the payment order as cancelled.
+    /// </summary>
+    /// <remarks>
+    /// Records the cancellation time and updates the entity state.
+    /// </remarks>
     public void Cancel()
     {
         Status = PaymentStatus.Cancelled;
@@ -64,7 +88,9 @@ public class PaymentOrder : UpdatableEntity
         Update();
     }
 
-    // cập nhật khi thanh toán hết hạn
+    /// <summary>
+    /// Marks the payment order as expired.
+    /// </summary>
     public void MarkExpired()
     {
         Status = PaymentStatus.Expired;

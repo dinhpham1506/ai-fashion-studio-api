@@ -13,11 +13,22 @@ namespace AiFashionStudio.Platform.Application.Users.Queries.GetMyProfile
     {
         private readonly IUserRepository _userRepository;
 
+        /// <summary>
+        /// Creates a new instance of the <see cref="GetMyProfileQueryHandler"/> class.
+        /// </summary>
+        /// <param name="userRepository">The user repository used to load the current user's profile.</param>
         public GetMyProfileQueryHandler(IUserRepository userRepository)
         {
             _userRepository = userRepository;
         }
 
+        /// <summary>
+        /// Gets the current user's profile.
+        /// </summary>
+        /// <param name="request">The query containing the user identifier.</param>
+        /// <param name="cancellationToken">A token that can cancel the operation.</param>
+        /// <returns>The current user's profile.</returns>
+        /// <exception cref="UnauthorizedException">Thrown when the user cannot be found.</exception>
         public async Task<UserProfileResponse> Handle(GetMyProfileQuery request, CancellationToken cancellationToken)
         {
             var user = await _userRepository.GetByIdWithRolesAsync(request.UserId, cancellationToken)
@@ -26,6 +37,11 @@ namespace AiFashionStudio.Platform.Application.Users.Queries.GetMyProfile
             return MapToResponse(user);
         }
 
+        /// <summary>
+        /// Creates a user profile response from a user entity.
+        /// </summary>
+        /// <param name="user">The user to map.</param>
+        /// <returns>A user profile response populated with the user's details, role codes, and status.</returns>
         internal static UserProfileResponse MapToResponse(User user)
         {
             var roleCodes = user.UserRoles

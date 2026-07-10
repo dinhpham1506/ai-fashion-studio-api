@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -8,7 +8,9 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
     /// <inheritdoc />
     public partial class AddAboutUsContent : Migration
     {
-        /// <inheritdoc />
+        /// <summary>
+        /// Adds the about us content table and enforces unique section keys.
+        /// </summary>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -37,7 +39,10 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
                 unique: true);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Drops the about_us_contents table.
+        /// </summary>
+        /// <param name="migrationBuilder">The migration builder used to apply the change.</param>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

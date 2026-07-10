@@ -17,12 +17,21 @@ namespace AiFashionStudio.Platform.Application.Users.Commands.UploadMyAvatar
         private readonly IUserRepository _userRepository;
         private readonly IFileStorage _fileStorage;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="UploadMyAvatarCommandHandler"/> class.
+        /// </summary>
         public UploadMyAvatarCommandHandler(IUserRepository userRepository, IFileStorage fileStorage)
         {
             _userRepository = userRepository;
             _fileStorage = fileStorage;
         }
 
+        /// <summary>
+        /// Uploads the authenticated user's avatar and updates the stored profile image URL.
+        /// </summary>
+        /// <param name="command">The upload command containing the user ID, file name, content, and content type.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+        /// <returns>The uploaded avatar URL.</returns>
         public async Task<AvatarUploadResponse> Handle(UploadMyAvatarCommand command, CancellationToken cancellationToken)
         {
             var user = await _userRepository.GetByIdAsync(command.UserId, cancellationToken)

@@ -1,4 +1,4 @@
-﻿using AiFashionStudio.Platform.Domain.Invoice.Entities;
+using AiFashionStudio.Platform.Domain.Invoice.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,13 +9,27 @@ namespace AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories
 {
     public interface IInvoiceRepository : IBaseRepository<Invoice>
     {
-        // Tìm invoice theo order — mỗi order chỉ có 1 invoice
+        /// <summary>
+/// Gets the invoice associated with an order.
+/// </summary>
+/// <param name="orderId">The order identifier.</param>
+/// <returns>The invoice for the specified order, or <c>null</c> if no invoice exists.</returns>
         Task<Invoice?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default);
 
-        // Idempotency: ngăn tạo 2 invoice cho cùng 1 order
+        /// <summary>
+/// Determines whether an invoice exists for the specified order.
+/// </summary>
+/// <param name="orderId">The order identifier to check.</param>
+/// <param name="cancellationToken">A token used to cancel the operation.</param>
+/// <returns><c>true</c> if an invoice exists for the specified order; otherwise, <c>false</c>.</returns>
         Task<bool> ExistsForOrderAsync(Guid orderId, CancellationToken cancellationToken = default);
 
-        // Đếm số invoice đã phát hành trong ngày, dùng để sinh số thứ tự cho invoiceNumber
+        /// <summary>
+/// Counts the invoices issued on a specific date.
+/// </summary>
+/// <param name="issuedDate">The date to count issued invoices for.</param>
+/// <param name="cancellationToken">A token that can be used to cancel the operation.</param>
+/// <returns>The number of invoices issued on the specified date.</returns>
         Task<int> CountIssuedTodayAsync(DateOnly issuedDate, CancellationToken cancellationToken = default);
     }
 }

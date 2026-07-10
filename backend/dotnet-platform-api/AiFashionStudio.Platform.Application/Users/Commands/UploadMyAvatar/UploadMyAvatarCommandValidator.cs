@@ -16,6 +16,9 @@ namespace AiFashionStudio.Platform.Application.Users.Commands.UploadMyAvatar
             "image/webp"
         };
 
+        /// <summary>
+        /// Validates avatar file content and content type for an upload command.
+        /// </summary>
         public UploadMyAvatarCommandValidator()
         {
             RuleFor(command => command.Content)

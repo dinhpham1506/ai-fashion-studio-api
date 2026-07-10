@@ -16,6 +16,9 @@ public class InvoiceController : ControllerBase
 {
     private readonly ISender _sender;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InvoiceController"/> class.
+    /// </summary>
     public InvoiceController(ISender sender)
     {
         _sender = sender;
@@ -32,6 +35,11 @@ public class InvoiceController : ControllerBase
 
     private bool IsStaffOrAdmin => User.IsInRole("STAFF") || User.IsInRole("ADMIN");
 
+    /// <summary>
+    /// Retrieves an invoice by its ID.
+    /// </summary>
+    /// <param name="invoiceId">The invoice identifier.</param>
+    /// <returns>The invoice data for the specified ID.</returns>
     [HttpGet("{invoiceId:guid}")]
     public async Task<IActionResult> GetById(Guid invoiceId, CancellationToken cancellationToken)
     {
@@ -39,6 +47,11 @@ public class InvoiceController : ControllerBase
         return Ok(ApiResponse.Ok(result));
     }
 
+    /// <summary>
+    /// Gets an invoice by order ID.
+    /// </summary>
+    /// <param name="orderId">The order identifier.</param>
+    /// <returns>A successful response containing the invoice for the specified order.</returns>
     [HttpGet("order/{orderId:guid}")]
     public async Task<IActionResult> GetByOrder(Guid orderId, CancellationToken cancellationToken)
     {
@@ -46,6 +59,12 @@ public class InvoiceController : ControllerBase
         return Ok(ApiResponse.Ok(result));
     }
 
+    /// <summary>
+    /// Retrieves the items for an invoice.
+    /// </summary>
+    /// <param name="invoiceId">The invoice identifier.</param>
+    /// <param name="cancellationToken">A token that cancels the operation.</param>
+    /// <returns>The invoice items wrapped in a successful HTTP response.</returns>
     [HttpGet("{invoiceId:guid}/items")]
     public async Task<IActionResult> GetItems(Guid invoiceId, CancellationToken cancellationToken)
     {
@@ -53,6 +72,11 @@ public class InvoiceController : ControllerBase
         return Ok(ApiResponse.Ok(result));
     }
 
+    /// <summary>
+    /// Gets the PDF for an invoice.
+    /// </summary>
+    /// <param name="invoiceId">The invoice identifier.</param>
+    /// <returns>The invoice PDF response.</returns>
     [HttpGet("{invoiceId:guid}/pdf")]
     public async Task<IActionResult> GetPdf(Guid invoiceId, CancellationToken cancellationToken)
     {

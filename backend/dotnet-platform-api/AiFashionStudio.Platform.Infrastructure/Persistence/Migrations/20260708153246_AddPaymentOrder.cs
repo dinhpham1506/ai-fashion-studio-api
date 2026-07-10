@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -8,7 +8,10 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
     /// <inheritdoc />
     public partial class AddPaymentOrder : Migration
     {
-        /// <inheritdoc />
+        /// <summary>
+        /// Creates the payment_orders table and its constraints and indexes.
+        /// </summary>
+        /// <param name="migrationBuilder">The builder used to define the migration operations.</param>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -51,7 +54,10 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
                 column: "user_id");
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Removes the payment_orders table.
+        /// </summary>
+        /// <param name="migrationBuilder">The migration builder.</param>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

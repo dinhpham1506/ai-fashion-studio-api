@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -8,7 +8,10 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
     /// <inheritdoc />
     public partial class AddInvoice : Migration
     {
-        /// <inheritdoc />
+        /// <summary>
+        /// Creates the invoice tables and their indexes.
+        /// </summary>
+        /// <param name="migrationBuilder">The migration builder used to apply schema changes.</param>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -73,7 +76,9 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
                 unique: true);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Removes the invoice tables created by this migration.
+        /// </summary>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

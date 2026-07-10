@@ -11,11 +11,22 @@ namespace AiFashionStudio.Platform.Application.Invoices.Queries.GetInvoicePdf
     {
         private readonly IInvoiceRepository _invoiceRepository;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GetInvoicePdfQueryHandler"/> class.
+        /// </summary>
         public GetInvoicePdfQueryHandler(IInvoiceRepository invoiceRepository)
         {
             _invoiceRepository = invoiceRepository;
         }
 
+        /// <summary>
+        /// Gets the PDF details for an invoice.
+        /// </summary>
+        /// <param name="request">The invoice PDF query.</param>
+        /// <param name="cancellationToken">A token that cancels the operation.</param>
+        /// <returns>The invoice number and PDF URL for the requested invoice.</returns>
+        /// <exception cref="NotFoundException">Thrown when the invoice does not exist or its PDF is not ready.</exception>
+        /// <exception cref="ForbiddenException">Thrown when the requester does not have permission to view the invoice.</exception>
         public async Task<InvoicePdfResponse> Handle(GetInvoicePdfQuery request, CancellationToken cancellationToken)
         {
             var invoice = await _invoiceRepository.GetByIdAsync(request.InvoiceId, cancellationToken);

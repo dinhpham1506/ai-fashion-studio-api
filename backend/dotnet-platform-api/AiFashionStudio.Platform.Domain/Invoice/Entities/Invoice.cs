@@ -1,4 +1,4 @@
-﻿using AiFashionStudio.Platform.Domain.Common;
+using AiFashionStudio.Platform.Domain.Common;
 using AiFashionStudio.Platform.Domain.Invoice.Enums;
 using System;
 using System.Collections.Generic;
@@ -28,6 +28,17 @@ namespace AiFashionStudio.Platform.Domain.Invoice.Entities
 
         }
 
+        /// <summary>
+        /// Creates an issued invoice from the supplied order, payment, customer, and items.
+        /// </summary>
+        /// <param name="orderId">The associated order identifier.</param>
+        /// <param name="PaymentId">The associated payment identifier.</param>
+        /// <param name="CustomerId">The customer identifier.</param>
+        /// <param name="invoiceNumber">The invoice number.</param>
+        /// <param name="currency">The invoice currency code.</param>
+        /// <param name="items">The invoice items to include.</param>
+        /// <returns>The created invoice.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when no invoice items are provided.</exception>
         public static Invoice Issue(Guid orderId, Guid PaymentId, Guid CustomerId, string invoiceNumber, string currency, IEnumerable<InvoiceItem> items)
         {
             var invoice = new Invoice()
@@ -51,6 +62,10 @@ namespace AiFashionStudio.Platform.Domain.Invoice.Entities
             return invoice;
         }
 
+        /// <summary>
+        /// Attaches a PDF URL to the invoice.
+        /// </summary>
+        /// <param name="pdfUrl">The PDF URL to store.</param>
         public void AttachPdf(string pdfUrl)
         {
             // PDF bất biến — chỉ gắn khi chưa có
@@ -60,7 +75,12 @@ namespace AiFashionStudio.Platform.Domain.Invoice.Entities
             }
         }
         
-        public bool BelongTo(Guid UserId) => CustomerId == UserId;
+        /// <summary>
+/// Determines whether the invoice belongs to a customer.
+/// </summary>
+/// <param name="UserId">The user ID to compare with the invoice customer ID.</param>
+/// <returns><c>true</c> if the invoice customer ID matches the specified user ID, <c>false</c> otherwise.</returns>
+public bool BelongTo(Guid UserId) => CustomerId == UserId;
 
 
 

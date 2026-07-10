@@ -4,6 +4,9 @@ namespace AiFashionStudio.Platform.Application.Users.Commands.UpdateMyProfile
 {
     public class UpdateMyProfileCommandValidator : AbstractValidator<UpdateMyProfileCommand>
     {
+        /// <summary>
+        /// Validates updates to the current user's profile.
+        /// </summary>
         public UpdateMyProfileCommandValidator()
         {
             RuleFor(command => command.FullName)

@@ -1,4 +1,4 @@
-﻿using AiFashionStudio.Platform.Domain.Common;
+using AiFashionStudio.Platform.Domain.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +19,14 @@ namespace AiFashionStudio.Platform.Domain.Invoice.Entities
         {
         }
 
+        /// <summary>
+        /// Creates an invoice item with the specified snapshot and pricing details.
+        /// </summary>
+        /// <param name="productNameSnapshot">The product name captured at the time the invoice item is created.</param>
+        /// <param name="variantSnapshot">The variant captured at the time the invoice item is created.</param>
+        /// <param name="quantity">The number of units.</param>
+        /// <param name="unitPrice">The price per unit.</param>
+        /// <returns>A new invoice item.</returns>
         public static InvoiceItem Create(string productNameSnapshot, string? variantSnapshot, int quantity, decimal unitPrice)
         {
             return new InvoiceItem

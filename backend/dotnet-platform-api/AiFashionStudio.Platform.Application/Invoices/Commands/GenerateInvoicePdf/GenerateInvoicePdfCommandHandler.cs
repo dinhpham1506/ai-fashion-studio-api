@@ -15,6 +15,13 @@ namespace AiFashionStudio.Platform.Application.Invoices.Commands.GenerateInvoice
         private readonly IFileStorage _fileStorage;
         private readonly ILogger<GenerateInvoicePdfCommandHandler> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GenerateInvoicePdfCommandHandler"/> class.
+        /// </summary>
+        /// <param name="invoiceRepository">The invoice repository.</param>
+        /// <param name="pdfGenerator">The invoice PDF generator.</param>
+        /// <param name="fileStorage">The file storage service.</param>
+        /// <param name="logger">The logger used to record failures.</param>
         public GenerateInvoicePdfCommandHandler(
             IInvoiceRepository invoiceRepository,
             IInvoicePdfGenerator pdfGenerator,
@@ -27,6 +34,9 @@ namespace AiFashionStudio.Platform.Application.Invoices.Commands.GenerateInvoice
             _logger = logger;
         }
 
+        /// <summary>
+        /// Generates and stores a PDF for an invoice when one has not already been attached.
+        /// </summary>
         public async Task Handle(GenerateInvoicePdfCommand command, CancellationToken cancellationToken)
         {
             try

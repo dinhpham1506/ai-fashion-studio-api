@@ -14,12 +14,19 @@ public class AboutUsController : ControllerBase
 {
     private readonly ISender _sender;
 
+    /// <summary>
+    /// Creates an About Us controller with the specified sender.
+    /// </summary>
+    /// <param name="sender">The mediator used to execute queries and commands.</param>
     public AboutUsController(ISender sender)
     {
         _sender = sender;
     }
 
-    // Public — Guest/Customer xem các section PUBLISHED
+    /// <summary>
+    /// Gets the published About Us content.
+    /// </summary>
+    /// <returns>The published About Us content wrapped in an OK response.</returns>
     [AllowAnonymous]
     [HttpGet("api/about-us")]
     public async Task<IActionResult> GetPublished(CancellationToken cancellationToken)
@@ -28,7 +35,12 @@ public class AboutUsController : ControllerBase
         return Ok(ApiResponse.Ok(result));
     }
 
-    // Staff/Admin — tạo mới hoặc cập nhật một section
+    /// <summary>
+    /// Creates or updates an About Us section.
+    /// </summary>
+    /// <param name="sectionKey">The section identifier to upsert.</param>
+    /// <param name="request">The About Us content to store.</param>
+    /// <returns>An action result containing the updated section, or an unauthorized response when the user token is invalid.</returns>
     [Authorize(Roles = "STAFF,ADMIN")]
     [HttpPut("api/admin/about-us/{sectionKey}")]
     public async Task<IActionResult> Upsert(string sectionKey, [FromBody] UpsertAboutUsRequest request, CancellationToken cancellationToken)
@@ -45,6 +57,11 @@ public class AboutUsController : ControllerBase
         return Ok(ApiResponse.Ok(result, "About Us section updated"));
     }
 
+    /// <summary>
+    /// Extracts the current user's identifier from the subject claim.
+    /// </summary>
+    /// <param name="userId">When this method returns, contains the parsed user identifier if the claim is present and valid; otherwise, <see cref="Guid.Empty"/>.</param>
+    /// <returns><c>true</c> if the subject claim exists and can be parsed as a <see cref="Guid"/>, <c>false</c> otherwise.</returns>
     private bool TryGetUserId(out Guid userId)
     {
         userId = Guid.Empty;

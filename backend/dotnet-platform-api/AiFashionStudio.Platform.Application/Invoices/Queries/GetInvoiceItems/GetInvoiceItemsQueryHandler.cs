@@ -12,11 +12,23 @@ namespace AiFashionStudio.Platform.Application.Invoices.Queries.GetInvoiceItems
     {
         private readonly IInvoiceRepository _invoiceRepository;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GetInvoiceItemsQueryHandler"/> class.
+        /// </summary>
+        /// <param name="invoiceRepository">The invoice repository used to load invoice data.</param>
         public GetInvoiceItemsQueryHandler(IInvoiceRepository invoiceRepository)
         {
             _invoiceRepository = invoiceRepository;
         }
 
+        /// <summary>
+        /// Gets the items for an invoice.
+        /// </summary>
+        /// <param name="request">The query containing the invoice ID and caller access information.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        /// <returns>The invoice items response.</returns>
+        /// <exception cref="NotFoundException">Thrown when the invoice cannot be found.</exception>
+        /// <exception cref="ForbiddenException">Thrown when the caller is not allowed to view the invoice.</exception>
         public async Task<InvoiceItemsResponse> Handle(GetInvoiceItemsQuery request, CancellationToken cancellationToken)
         {
             var invoice = await _invoiceRepository.GetByIdAsync(request.InvoiceId, cancellationToken);

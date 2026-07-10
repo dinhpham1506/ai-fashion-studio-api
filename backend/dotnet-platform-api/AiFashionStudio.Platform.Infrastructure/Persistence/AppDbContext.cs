@@ -29,6 +29,10 @@ public class AppDbContext : DbContext
 
     public DbSet<AboutUsContent> AboutUsContents => Set<AboutUsContent>();
 
+    /// <summary>
+    /// Applies entity configurations for the context.
+    /// </summary>
+    /// <param name="modelBuilder">The builder used to configure the model.</param>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

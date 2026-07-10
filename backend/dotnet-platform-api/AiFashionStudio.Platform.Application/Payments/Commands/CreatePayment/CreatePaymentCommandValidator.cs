@@ -1,9 +1,12 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace AiFashionStudio.Platform.Application.Payments.Commands.CreatePayment;
 
 public class CreatePaymentLinkCommandValidator : AbstractValidator<CreatePaymentCommand>
 {
+    /// <summary>
+    /// Validates a payment command.
+    /// </summary>
     public CreatePaymentLinkCommandValidator()
     {
         RuleFor(command => command.Amount)

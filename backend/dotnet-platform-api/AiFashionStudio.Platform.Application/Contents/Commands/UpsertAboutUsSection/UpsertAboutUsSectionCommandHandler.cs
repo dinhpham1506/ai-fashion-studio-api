@@ -13,11 +13,21 @@ namespace AiFashionStudio.Platform.Application.Contents.Commands.UpsertAboutUsSe
     {
         private readonly IAboutUsContentRepository _aboutUsContentRepository;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="UpsertAboutUsSectionCommandHandler"/> class.
+        /// </summary>
+        /// <param name="aboutUsContentRepository">The repository used to access About Us content.</param>
         public UpsertAboutUsSectionCommandHandler(IAboutUsContentRepository aboutUsContentRepository)
         {
             _aboutUsContentRepository = aboutUsContentRepository;
         }
 
+        /// <summary>
+        /// Upserts an About Us section.
+        /// </summary>
+        /// <param name="command">The section data to create or update.</param>
+        /// <param name="cancellationToken">A token that can cancel the operation.</param>
+        /// <returns>The section key and status after the upsert.</returns>
         public async Task<UpsertAboutUsResponse> Handle(UpsertAboutUsSectionCommand command, CancellationToken cancellationToken)
         {
             // SectionKey chuẩn hóa về UPPERCASE để "introduction" và "INTRODUCTION" là cùng 1 section

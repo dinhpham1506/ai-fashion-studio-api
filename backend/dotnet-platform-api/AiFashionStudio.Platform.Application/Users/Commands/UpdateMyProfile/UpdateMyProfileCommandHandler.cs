@@ -12,11 +12,21 @@ namespace AiFashionStudio.Platform.Application.Users.Commands.UpdateMyProfile
     {
         private readonly IUserRepository _userRepository;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="UpdateMyProfileCommandHandler"/> class.
+        /// </summary>
+        /// <param name="userRepository">The user repository used to load and save user data.</param>
         public UpdateMyProfileCommandHandler(IUserRepository userRepository)
         {
             _userRepository = userRepository;
         }
 
+        /// <summary>
+        /// Updates the authenticated user's profile.
+        /// </summary>
+        /// <param name="command">The profile update data, including the user ID, full name, and phone number.</param>
+        /// <returns>The updated user profile.</returns>
+        /// <exception cref="UnauthorizedException">Thrown when the user cannot be found.</exception>
         public async Task<UserProfileResponse> Handle(UpdateMyProfileCommand command, CancellationToken cancellationToken)
         {
             var user = await _userRepository.GetByIdWithRolesAsync(command.UserId, cancellationToken)
