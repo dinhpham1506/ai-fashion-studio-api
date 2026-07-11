@@ -64,6 +64,30 @@ public class ProductInventory extends BaseDomainModel {
         this.soldQuantity = soldQuantity;
     }
 
+    public void reserve(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero");
+        }
+        if (availableQuantity < quantity) {
+            throw new IllegalStateException("Product is out of stock");
+        }
+        availableQuantity -= quantity;
+        reservedQuantity += quantity;
+        updatedAt = OffsetDateTime.now();
+    }
+
+    public void markSoldFromReserved(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero");
+        }
+        if (reservedQuantity < quantity) {
+            throw new IllegalStateException("Reserved quantity is not enough");
+        }
+        reservedQuantity -= quantity;
+        soldQuantity += quantity;
+        updatedAt = OffsetDateTime.now();
+    }
+
     public OffsetDateTime getUpdatedAt() {
         return updatedAt;
     }

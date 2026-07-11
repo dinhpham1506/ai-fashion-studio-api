@@ -21,7 +21,7 @@ DDL thật (source of truth): [infra/postgres/init/](../infra/postgres/init/).
 | design | designs, design_layers | Java |
 | ai_tryon | tryon_requests, tryon_results | Java |
 | ordering | orders, order_items, order_status_history | Java |
-| feedback | feedbacks | Java |
+| feedback | feedbacks | C# |
 
 ## Boundary rule
 Service nào sở hữu bảng thì chỉ service đó được ghi. Ví dụ: C# Payment ghi `payments` rồi publish `PaymentSucceeded`; Java Order consume event và tự cập nhật `orders` — C# không ghi thẳng `orders`.

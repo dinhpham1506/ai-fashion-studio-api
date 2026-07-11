@@ -29,6 +29,17 @@ public class GlobalExceptionHandler  {
                 ));
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiResponse> handleForbidden(ForbiddenException ex) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(
+                        ex.getMessage(),
+                        List.of(new ApiError(null, ex.getCode(),
+                                ex.getMessage()))
+                ));
+    }
+
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ApiResponse>
     handleBusinessRule(BusinessRuleException ex) {
@@ -74,4 +85,3 @@ public class GlobalExceptionHandler  {
                 .body(ApiResponse.error("Validation failed", errors));
     }
 }
-
