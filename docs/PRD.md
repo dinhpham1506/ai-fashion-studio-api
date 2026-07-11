@@ -28,8 +28,8 @@ Guest → xem About Us/Product/Feedback → Register/Login → Browse → chọn
 - BR-012 chỉ About Us PUBLISHED mới hiển thị.
 
 ## 6. Service split
-- **Java (java-core-api):** Catalog, Design+Try-On, Order, Feedback.
-- **C# (dotnet-platform-api):** Identity, Payment+Invoice, Staff Operation Gateway, Content (About Us).
+- **Java (java-core-api):** Catalog, Design+Try-On, Order.
+- **C# (dotnet-platform-api):** Identity, Payment+Invoice, Feedback, Staff Operation Gateway, Content (About Us).
 - **API Gateway (api-gateway):** Spring Cloud Gateway — entry layer, JWT, role guard.
 
 ## 7. Kafka events

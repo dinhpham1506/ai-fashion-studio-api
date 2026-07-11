@@ -52,5 +52,5 @@ Recommended event ownership:
 - `payment.events`: C# Payment Service produces `PaymentSucceeded`, `PaymentFailed`.
 - `design.events`: Java Design/Try-On flow produces `TryOnRequested`.
 - `tryon.events`: AI mock worker produces `TryOnCompleted`, `TryOnFailed`.
-- `feedback.events`: Java Feedback Service can produce feedback moderation events later.
+- `feedback.events`: C# Feedback Service can produce feedback moderation events later.
 - `notification.events`: reserved for notification fan-out later.

@@ -19,6 +19,6 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("AI Fashion Studio - Java Core API")
                         .version("v1")
-                        .description("Catalog, design, try-on, ordering and feedback APIs"));
+                        .description("Catalog, design, try-on and ordering APIs"));
     }
 }
