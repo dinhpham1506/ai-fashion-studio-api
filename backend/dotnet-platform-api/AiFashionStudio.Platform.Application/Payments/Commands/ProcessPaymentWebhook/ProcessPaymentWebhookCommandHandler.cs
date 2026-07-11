@@ -1,5 +1,6 @@
 using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
 using AiFashionStudio.Platform.Application.Common.Interfaces.IServices;
+using AiFashionStudio.Platform.Application.Common.Models;
 using AiFashionStudio.Platform.Application.Invoices.Commands.CreateInvoice;
 using AiFashionStudio.Platform.Application.Invoices.Commands.GenerateInvoicePdf;
 using MediatR;
@@ -16,6 +17,7 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.ProcessPaymentW
     {
         private readonly IPaymentGatewayService _paymentGatewayService;
         private readonly IPaymentOrderRepository _paymentOrderRepository;
+        private readonly IPaymentEventPublisher _paymentEventPublisher;
         private readonly ISender _sender;
         private ILogger<ProcessPaymentWebhookCommandHandler> _logger;
 
@@ -24,11 +26,13 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.ProcessPaymentW
         /// </summary>
         public ProcessPaymentWebhookCommandHandler(IPaymentGatewayService paymentGatewayService,
             IPaymentOrderRepository paymentOrderRepository,
+            IPaymentEventPublisher paymentEventPublisher,
             ISender sender,
             ILogger<ProcessPaymentWebhookCommandHandler> logger)
         {
             _paymentGatewayService = paymentGatewayService;
             _paymentOrderRepository = paymentOrderRepository;
+            _paymentEventPublisher = paymentEventPublisher;
             _sender = sender;
             _logger = logger;
         }
@@ -52,6 +56,10 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.ProcessPaymentW
             if (!webhook.IsSuccess)
             {
                 _logger.LogInformation($"Webhook for orderCode {webhook.OrderCode} reported failure, ignored");
+
+                await _paymentEventPublisher.PublishPaymentFailedAsync(
+                    new PaymentFailedEventData(order.Id, order.OrderId, order.OrderCode, "PAYOS", "Provider reported failure"),
+                    cancellationToken);
                 return;
             }
 
@@ -63,9 +71,27 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.ProcessPaymentW
                 return; // KHÔNG đánh dấu PAID khi lệch tiền
             }
 
+            var wasAlreadyPaid = !order.IsPending() && order.PaidAt is not null;
+
             order.MarkPaid(webhook.Reference); //Idempotency
 
             await _paymentOrderRepository.SaveChangesAsync(cancellationToken);
+
+            // Duplicate webhook: đã PAID và publish trước đó rồi thì không phát lại event
+            if (!wasAlreadyPaid)
+            {
+                await _paymentEventPublisher.PublishPaymentSucceededAsync(
+                    new PaymentSucceededEventData(
+                        order.Id,
+                        order.OrderId,
+                        order.OrderCode,
+                        order.UserId,
+                        order.Amount,
+                        "PAYOS",
+                        webhook.Reference,
+                        order.PaidAt ?? DateTime.UtcNow),
+                    cancellationToken);
+            }
 
             try
             {

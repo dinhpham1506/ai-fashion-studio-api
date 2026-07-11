@@ -34,7 +34,6 @@ public class AppDbContext : DbContext
     /// Applies entity configurations for the context.
     /// </summary>
     /// <param name="modelBuilder">The builder used to configure the model.</param>
-
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

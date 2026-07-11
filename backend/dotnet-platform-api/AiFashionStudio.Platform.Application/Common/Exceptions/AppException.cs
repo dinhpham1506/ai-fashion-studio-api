@@ -82,3 +82,21 @@ public class NotFoundException : AppException
 
     }
 }
+
+// lỗi khi service phía sau (Java Core API, PayOS...) trả về response không hợp lệ — map 502
+public class BadGatewayException : AppException
+{
+    public BadGatewayException(string code, string message)
+        : base(message, new[] { new AppError(code, message) })
+    {
+    }
+}
+
+// lỗi khi không kết nối được service phía sau (down/timeout) — map 503
+public class ServiceUnavailableException : AppException
+{
+    public ServiceUnavailableException(string code, string message)
+        : base(message, new[] { new AppError(code, message) })
+    {
+    }
+}

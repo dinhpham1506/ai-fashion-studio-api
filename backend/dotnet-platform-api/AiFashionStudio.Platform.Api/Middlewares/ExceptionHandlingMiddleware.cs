@@ -72,6 +72,8 @@ public class ExceptionHandlingMiddleware
         UnauthorizedException => HttpStatusCode.Unauthorized,
         ForbiddenException => HttpStatusCode.Forbidden,
         ConflictException => HttpStatusCode.Conflict,
+        BadGatewayException => HttpStatusCode.BadGateway,
+        ServiceUnavailableException => HttpStatusCode.ServiceUnavailable,
         _ => HttpStatusCode.InternalServerError
     };
 

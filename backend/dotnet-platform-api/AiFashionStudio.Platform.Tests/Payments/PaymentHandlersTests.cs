@@ -70,13 +70,33 @@ public class PaymentHandlersTests
     public async Task GetPaymentStatus_Should_Return_Owner_Payment_Status()
     {
         var userId = Guid.NewGuid();
-        var order = PaymentOrder.Create(userId, 456, 90000, "order");
+        var orderId = Guid.NewGuid();
+        var order = PaymentOrder.Create(userId, 456, 90000, "order", orderId);
         order.MarkPaid("ref");
         var handler = new GetPaymentStatusQueryHandler(new FakePaymentOrderRepository(order));
 
-        var response = await handler.Handle(new GetPaymentStatusQuery(userId, 456), CancellationToken.None);
+        var response = await handler.Handle(new GetPaymentStatusQuery(userId, PaymentId: order.Id), CancellationToken.None);
 
-        Assert.Equal(order.Id, response.OrderId);
+        Assert.Equal(order.Id, response.PaymentId);
+        Assert.Equal(orderId, response.OrderId);
+        Assert.Equal(456, response.OrderCode);
+        Assert.Equal("PAID", response.Status);
+        Assert.NotNull(response.PaidAt);
+    }
+
+    [Fact]
+    public async Task GetPaymentStatus_Should_Return_By_Order_Id()
+    {
+        var userId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var order = PaymentOrder.Create(userId, 456, 90000, "order", orderId);
+        order.MarkPaid("ref");
+        var handler = new GetPaymentStatusQueryHandler(new FakePaymentOrderRepository(order));
+
+        var response = await handler.Handle(new GetPaymentStatusQuery(userId, OrderId: orderId), CancellationToken.None);
+
+        Assert.Equal(order.Id, response.PaymentId);
+        Assert.Equal(orderId, response.OrderId);
         Assert.Equal("PAID", response.Status);
         Assert.NotNull(response.PaidAt);
     }
@@ -90,6 +110,12 @@ public class PaymentHandlersTests
 
         public Task<PaymentOrder?> GetByOrderCodeAsync(long orderCode, CancellationToken cancellationToken = default)
             => Task.FromResult(Store.FirstOrDefault(order => order.OrderCode == orderCode));
+
+        public Task<PaymentOrder?> GetByIdAndUserIdAsync(Guid paymentId, Guid userId, CancellationToken cancellationToken = default)
+            => Task.FromResult(Store.FirstOrDefault(order => order.Id == paymentId && order.UserId == userId));
+
+        public Task<PaymentOrder?> GetByOrderIdAndUserIdAsync(Guid orderId, Guid userId, CancellationToken cancellationToken = default)
+            => Task.FromResult(Store.FirstOrDefault(order => order.OrderId == orderId && order.UserId == userId));
 
         public Task<PaymentOrder?> GetByOrderCodeAndUserIdAsync(long orderCode, Guid userId, CancellationToken cancellationToken = default)
             => Task.FromResult(Store.FirstOrDefault(order => order.OrderCode == orderCode && order.UserId == userId));

@@ -18,6 +18,7 @@ public class PaymentOrderConfiguration : IEntityTypeConfiguration<PaymentOrder>
         builder.HasKey(order => order.Id);
 
         builder.Property(order => order.UserId).HasColumnName("user_id");
+        builder.Property(order => order.OrderId).HasColumnName("order_id");
         builder.Property(order => order.OrderCode).HasColumnName("order_code");
         builder.Property(order => order.Amount).HasColumnName("amount");
         builder.Property(order => order.Description).HasColumnName("description").HasMaxLength(256).IsRequired();
@@ -31,6 +32,7 @@ public class PaymentOrderConfiguration : IEntityTypeConfiguration<PaymentOrder>
 
         builder.HasIndex(order => order.OrderCode).IsUnique();
         builder.HasIndex(order => order.UserId);
+        builder.HasIndex(order => order.OrderId);
 
         builder.HasOne<User>()
             .WithMany()

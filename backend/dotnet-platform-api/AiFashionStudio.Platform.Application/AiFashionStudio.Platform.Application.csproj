@@ -7,6 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Invoice\**" />
+    <EmbeddedResource Remove="Invoice\**" />
+    <None Remove="Invoice\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\AiFashionStudio.Platform.Domain\AiFashionStudio.Platform.Domain.csproj" />
   </ItemGroup>
 
