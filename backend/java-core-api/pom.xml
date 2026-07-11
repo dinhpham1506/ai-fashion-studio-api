@@ -15,7 +15,7 @@
     <artifactId>java-core-api</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>java-core-api</name>
-    <description>AI ShopTee - Java core domain API (catalog, design, tryon, ordering, feedback)</description>
+    <description>AI ShopTee - Java core domain API (catalog, design, tryon, ordering)</description>
 
     <properties>
         <java.version>17</java.version>

@@ -1,8 +1,11 @@
 package com.aifashionstudio.catalog.api.controller;
 
 import com.aifashionstudio.catalog.api.dto.CatalogResponse;
+import com.aifashionstudio.catalog.api.dto.ProductDetailResponse;
 import com.aifashionstudio.catalog.api.mapper.CatalogApiMapper;
+import com.aifashionstudio.catalog.api.mapper.ProductCatalogApiMapper;
 import com.aifashionstudio.catalog.application.service.CatalogApplicationService;
+import com.aifashionstudio.catalog.application.service.ProductDetailApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -26,7 +29,9 @@ import java.util.UUID;
 @Tag(name = "Products", description = "Public product APIs for the frontend. Only ACTIVE catalog products are returned.")
 public class ProductController {
     private final CatalogApplicationService catalogApplicationService;
+    private final ProductDetailApplicationService productDetailApplicationService;
     private final CatalogApiMapper mapper;
+    private final ProductCatalogApiMapper productCatalogApiMapper;
 
     @Operation(
             summary = "List public products",
@@ -58,11 +63,11 @@ public class ProductController {
             }
     )
     @GetMapping("/{id}")
-    public ResponseEntity<CatalogResponse> getProductById(
+    public ResponseEntity<ProductDetailResponse> getProductById(
             @Parameter(description = "Product ID") @PathVariable UUID id
     ) {
         return ResponseEntity.ok(
-                mapper.toResponse(catalogApplicationService.getPublicProductById(id))
+                productCatalogApiMapper.toResponse(productDetailApplicationService.getPublicProductDetail(id))
         );
     }
 }

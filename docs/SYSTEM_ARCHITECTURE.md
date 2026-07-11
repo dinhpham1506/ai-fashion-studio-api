@@ -21,11 +21,11 @@ Tài liệu kiến trúc chính thức (source of truth). Sơ đồ C4 Container
 - Catalog: products, product_variants, product_images, product_inventory
 - Design + Try-On: designs, design_layers, tryon_requests, tryon_results
 - Order: orders, order_items, order_status_history
-- Feedback: feedbacks
 
 **C# (`backend/dotnet-platform-api`)** — platform & operation
 - Identity: users, roles, user_roles, refresh_tokens
 - Payment & Invoice: payments
+- Feedback: feedbacks
 - Staff Operation Gateway + Content: about_us_contents
 
 **Gateway (`backend/api-gateway`)** — Spring Cloud Gateway, điểm vào duy nhất cho frontend.
@@ -79,6 +79,8 @@ rectangle "AI T-Shirt Platform\nSystem Boundary" as System {
     rectangle "Payment & Invoice Service\nC# .NET 8\n\nPayOS / SePay\nWebhook\nPayment Status\nInvoice PDF\n\nOwns:\npayments" as Payment #FEF3C7
 
     rectangle "Staff Operation Gateway\nC# .NET 8\n\nValidate Staff/Admin\nPrint Info\nAbout Us\nCall Java APIs\n\nOwns:\nabout_us_contents" as StaffGateway #FEF3C7
+
+    rectangle "Feedback Service\nC# .NET 8\n\nSubmit Feedback\nModerate Feedback\nPublic Feedback\n\nOwns:\nfeedbacks" as Feedback #FEF3C7
   }
 
   package "Java Core Domain Services\nJunior Core Scope" {
@@ -89,7 +91,6 @@ rectangle "AI T-Shirt Platform\nSystem Boundary" as System {
 
     rectangle "Order Service\nJava Spring Boot\n\nCreate Order\nOrder Items\nStatus Lifecycle\nConsume PaymentSucceeded\n\nOwns:\norders,\norder_items,\norder_status_history" as Order #DCFCE7
 
-    rectangle "Feedback Service\nJava Spring Boot\n\nSubmit Feedback\nModerate Feedback\nPublic Feedback\n\nOwns:\nfeedbacks" as Feedback #DCFCE7
   }
 
   queue "Kafka Event Bus\n\nOrderCreated\nPaymentSucceeded\nPaymentFailed\nTryOnRequested\nTryOnCompleted\nOrderCompleted" as Kafka #F3E8FF
@@ -154,8 +155,8 @@ StaffGateway --> Feedback : Moderate feedback
 
 note bottom of System
 SA Notes:
-1. Java owns core business.
-2. C# owns identity, payment, invoice and staff gateway.
+1. Java owns catalog, design/try-on and ordering core.
+2. C# owns identity, payment, invoice, feedback and staff gateway.
 3. Payment uses PayOS or SePay.
 4. Payment webhook goes to C# Payment Service.
 5. Java updates order after PaymentSucceeded event.
