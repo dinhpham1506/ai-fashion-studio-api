@@ -1,4 +1,4 @@
-﻿using AiFashionStudio.Platform.Domain.Common;
+using AiFashionStudio.Platform.Domain.Common;
 using AiFashionStudio.Platform.Domain.Identity.Enums;
 
 namespace AiFashionStudio.Platform.Domain.Identity.Entities;
@@ -61,10 +61,35 @@ public class User : UpdatableEntity
     // Kiểm tra xem người dùng có bị ban hay không
     public bool IsActive() => Status == UserStatus.Active;
 
-    // Đổi mật khẩu của người dùng, cập nhật PasswordHash và UpdatedAt
+    /// <summary>
+    /// Changes the user's password hash.
+    /// </summary>
+    /// <param name="newPasswordHash">The new password hash to store.</param>
     public void ChangePassword(string newPasswordHash)
     {
         PasswordHash = newPasswordHash;
+        Update();
+    }
+
+    /// <summary>
+    /// Updates the user's profile information.
+    /// </summary>
+    /// <param name="fullName">The user's full name.</param>
+    /// <param name="phone">The user's phone number.</param>
+    public void UpdateProfile(string fullName, string? phone)
+    {
+        FullName = fullName;
+        Phone = phone;
+        Update();
+    }
+
+    /// <summary>
+    /// Updates the user's avatar URL.
+    /// </summary>
+    /// <param name="avatarUrl">The new avatar URL.</param>
+    public void ChangeAvatar(string avatarUrl)
+    {
+        AvatarUrl = avatarUrl;
         Update();
     }
 }
