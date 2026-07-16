@@ -11,6 +11,8 @@ public interface JpaProductImageRepository extends JpaRepository<ProductImageJpa
 
     List<ProductImageJpaEntity> findByProductIdOrderBySortOrderAsc(UUID productId);
 
+    List<ProductImageJpaEntity> findByProductIdInOrderByProductIdAscThumbnailDescSortOrderAsc(List<UUID> productIds);
+
     Optional<ProductImageJpaEntity> findByProductIdAndThumbnailTrue(UUID productId);
 
     void deleteByProductId(UUID productId);

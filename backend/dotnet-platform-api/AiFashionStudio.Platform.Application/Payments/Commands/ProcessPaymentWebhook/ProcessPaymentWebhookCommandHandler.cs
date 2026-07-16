@@ -1,0 +1,113 @@
+using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
+using AiFashionStudio.Platform.Application.Common.Interfaces.IServices;
+using AiFashionStudio.Platform.Application.Common.Models;
+using AiFashionStudio.Platform.Application.Invoices.Commands.CreateInvoice;
+using AiFashionStudio.Platform.Application.Invoices.Commands.GenerateInvoicePdf;
+using MediatR;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace AiFashionStudio.Platform.Application.Payments.Commands.ProcessPaymentWebhook
+{
+    public class ProcessPaymentWebhookCommandHandler : IRequestHandler<ProcessPaymentWebhookCommand>
+    {
+        private readonly IPaymentGatewayService _paymentGatewayService;
+        private readonly IPaymentOrderRepository _paymentOrderRepository;
+        private readonly IPaymentEventPublisher _paymentEventPublisher;
+        private readonly ISender _sender;
+        private ILogger<ProcessPaymentWebhookCommandHandler> _logger;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ProcessPaymentWebhookCommandHandler"/> class.
+        /// </summary>
+        public ProcessPaymentWebhookCommandHandler(IPaymentGatewayService paymentGatewayService,
+            IPaymentOrderRepository paymentOrderRepository,
+            IPaymentEventPublisher paymentEventPublisher,
+            ISender sender,
+            ILogger<ProcessPaymentWebhookCommandHandler> logger)
+        {
+            _paymentGatewayService = paymentGatewayService;
+            _paymentOrderRepository = paymentOrderRepository;
+            _paymentEventPublisher = paymentEventPublisher;
+            _sender = sender;
+            _logger = logger;
+        }
+        /// <summary>
+        /// Processes a payment webhook and marks the matching order as paid when the payment is successful and the amount matches.
+        /// </summary>
+        /// <param name="command">The webhook payload to process.</param>
+        /// <param name="cancellationToken">A token to cancel the operation.</param>
+        public async Task Handle(ProcessPaymentWebhookCommand command, CancellationToken cancellationToken)
+        {
+            var webhook = await _paymentGatewayService.VerifyWebhookAsync(command.RawBody);
+
+            var order = await _paymentOrderRepository.GetByOrderCodeAsync(webhook.OrderCode,cancellationToken);
+            if (order == null)
+            {
+                _logger.LogInformation($"Webhook for unknown orderCode {webhook.OrderCode} ignored");
+
+                return;
+            }
+
+            if (!webhook.IsSuccess)
+            {
+                _logger.LogInformation($"Webhook for orderCode {webhook.OrderCode} reported failure, ignored");
+
+                await _paymentEventPublisher.PublishPaymentFailedAsync(
+                    new PaymentFailedEventData(order.Id, order.OrderId, order.OrderCode, "PAYOS", "Provider reported failure"),
+                    cancellationToken);
+                return;
+            }
+
+            if (order.Amount != webhook.Amount)
+            {
+                _logger.LogWarning(
+                    $"Webhook amount mismatch for orderCode {webhook.OrderCode}: expected {order.Amount}, got {webhook.Amount}" );
+
+                return; // KHÔNG đánh dấu PAID khi lệch tiền
+            }
+
+            var wasAlreadyPaid = !order.IsPending() && order.PaidAt is not null;
+
+            order.MarkPaid(webhook.Reference); //Idempotency
+
+            await _paymentOrderRepository.SaveChangesAsync(cancellationToken);
+
+            // Duplicate webhook: đã PAID và publish trước đó rồi thì không phát lại event
+            if (!wasAlreadyPaid)
+            {
+                await _paymentEventPublisher.PublishPaymentSucceededAsync(
+                    new PaymentSucceededEventData(
+                        order.Id,
+                        order.OrderId,
+                        order.OrderCode,
+                        order.UserId,
+                        order.Amount,
+                        "PAYOS",
+                        webhook.Reference,
+                        order.PaidAt ?? DateTime.UtcNow),
+                    cancellationToken);
+            }
+
+            try
+            {
+                var invoiceId = await _sender.Send(
+                    new CreateInvoiceCommand(order.Id, order.Id, order.UserId, order.Description, order.Amount),
+                    cancellationToken);
+
+                if (invoiceId is not null)
+                {
+                    await _sender.Send(new GenerateInvoicePdfCommand(invoiceId.Value), cancellationToken);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Invoice hook failed for paid order {OrderId}", order.Id);
+            }
+        }
+    }
+}

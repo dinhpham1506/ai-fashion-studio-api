@@ -23,6 +23,11 @@ public class PasswordHasher : IPasswordHasher
 
     public bool Verify(string password, string passwordHash)
     {
+        if (IsBCryptHash(passwordHash))
+        {
+            return BCrypt.Net.BCrypt.Verify(password, passwordHash);
+        }
+
         var parts = passwordHash.Split('.', 3);
 
         if (parts.Length != 3 || !int.TryParse(parts[0], out var iterations))
@@ -35,5 +40,12 @@ public class PasswordHasher : IPasswordHasher
         var actualKey = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, Algorithm, expectedKey.Length);
 
         return CryptographicOperations.FixedTimeEquals(actualKey, expectedKey);
+    }
+
+    private static bool IsBCryptHash(string passwordHash)
+    {
+        return passwordHash.StartsWith("$2a$", StringComparison.Ordinal)
+            || passwordHash.StartsWith("$2b$", StringComparison.Ordinal)
+            || passwordHash.StartsWith("$2y$", StringComparison.Ordinal);
     }
 }

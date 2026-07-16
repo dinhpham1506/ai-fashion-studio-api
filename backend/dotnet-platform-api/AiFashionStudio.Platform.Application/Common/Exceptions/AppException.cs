@@ -1,4 +1,6 @@
-﻿namespace AiFashionStudio.Platform.Application.Common.Exceptions;
+using System.Runtime.CompilerServices;
+
+namespace AiFashionStudio.Platform.Application.Common.Exceptions;
 
 public record AppError(string Code, string Message, string? Field = null);
 
@@ -45,10 +47,55 @@ public class UnauthorizedException : AppException
     {
     }
 }
+
+public class WebhookVerificationException : AppException
+{
+    public WebhookVerificationException(string code, string message)
+        : base(message, new[] { new AppError(code, message) })
+    {
+    }
+}
+
 // lỗi xảy ra khi người dùng không có quyền truy cập vào tài nguyên
 public class ForbiddenException : AppException
 {
+    /// <summary>
+    /// Creates an exception for a forbidden access error.
+    /// </summary>
+    /// <param name="code">The error code.</param>
+    /// <param name="message">The error message.</param>
     public ForbiddenException(string code, string message)
+        : base(message, new[] { new AppError(code, message) })
+    {
+    }
+
+}
+public class NotFoundException : AppException
+{
+    /// <summary>
+    /// Creates an exception for a missing resource.
+    /// </summary>
+    /// <param name="code">The application error code.</param>
+    /// <param name="message">The error message.</param>
+    public NotFoundException(string code, string message) : base(message, new[] { new AppError(code, message) })
+    {
+
+    }
+}
+
+// lỗi khi service phía sau (Java Core API, PayOS...) trả về response không hợp lệ — map 502
+public class BadGatewayException : AppException
+{
+    public BadGatewayException(string code, string message)
+        : base(message, new[] { new AppError(code, message) })
+    {
+    }
+}
+
+// lỗi khi không kết nối được service phía sau (down/timeout) — map 503
+public class ServiceUnavailableException : AppException
+{
+    public ServiceUnavailableException(string code, string message)
         : base(message, new[] { new AppError(code, message) })
     {
     }

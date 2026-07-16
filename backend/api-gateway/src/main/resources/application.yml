@@ -7,14 +7,20 @@ spring:
 
   cloud:
     gateway:
+      # Backend (.NET) cũng tự set header CORS; nếu không dedupe, browser nhận
+      # Access-Control-Allow-Origin bị lặp đôi và chặn request.
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
       globalcors:
         cors-configurations:
           '[/**]':
             allowed-origins:
               - "http://localhost:3000"
               - "http://localhost:3001"
+              - "http://localhost:5173"
             allowed-methods: "*"
             allowed-headers: "*"
+            allow-credentials: true
 
       routes:
         # ---- C# dotnet-platform-api ----
@@ -33,10 +39,21 @@ spring:
           predicates:
             - Path=/api/about-us/**
 
+        # Staff Operation Gateway (C# validate role roi goi Java)
+        - id: staff-gateway
+          uri: ${SVC_DOTNET_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/staff/**
+
         - id: feedback
           uri: ${SVC_DOTNET_URI:http://localhost:8082}
           predicates:
             - Path=/api/feedbacks/**
+
+        - id: ai-chat
+          uri: ${SVC_DOTNET_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/ai-chat/**
 
         # ---- Java java-core-api ----
         - id: catalog

@@ -12,6 +12,7 @@ public record CatalogResult(
         String description,
         BigDecimal basePrice,
         CatalogStatus status,
+        String thumbnailUrl,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

@@ -27,7 +27,6 @@ infra/                   docker-compose: postgres, kafka, minio, UIs
 contracts/               kafka schemas + openapi
 docs/                    PRD, database design, system architecture
 ```
-
 ## Chạy
 
 **Cách 1 — chạy hết (gateway + 2 backend + infra):**

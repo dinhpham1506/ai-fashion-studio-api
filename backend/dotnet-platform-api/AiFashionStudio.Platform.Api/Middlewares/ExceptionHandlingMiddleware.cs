@@ -59,12 +59,21 @@ public class ExceptionHandlingMiddleware
         return errors;
     }
 
+    /// <summary>
+    /// Maps an application exception to an HTTP status code.
+    /// </summary>
+    /// <param name="exception">The exception to map.</param>
+    /// <returns>The HTTP status code for the exception type.</returns>
     private static HttpStatusCode MapStatusCode(AppException exception) => exception switch
     {
         AppValidationException => HttpStatusCode.BadRequest,
+        WebhookVerificationException => HttpStatusCode.BadRequest,
+        NotFoundException => HttpStatusCode.NotFound,
         UnauthorizedException => HttpStatusCode.Unauthorized,
         ForbiddenException => HttpStatusCode.Forbidden,
         ConflictException => HttpStatusCode.Conflict,
+        BadGatewayException => HttpStatusCode.BadGateway,
+        ServiceUnavailableException => HttpStatusCode.ServiceUnavailable,
         _ => HttpStatusCode.InternalServerError
     };
 

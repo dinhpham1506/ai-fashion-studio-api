@@ -154,14 +154,16 @@ public class OrderApplicationServiceImpl implements OrderApplicationService {
         Order savedOrder = orderRepository.save(order);
 
         for (OrderItem item : savedOrder.getItems()) {
-            Design design = designRepository.findById(item.getDesignId())
-                    .orElseThrow(() -> new NotFoundException("DESIGN_NOT_FOUND", "Design not found with id: " + item.getDesignId()));
-            try {
-                design.lock();
-            } catch (IllegalStateException ex) {
-                throw new BusinessRuleException("DESIGN_MUST_BE_SAVED", ex.getMessage());
+            if (item.getDesignId() != null) {
+                Design design = designRepository.findById(item.getDesignId())
+                        .orElseThrow(() -> new NotFoundException("DESIGN_NOT_FOUND", "Design not found with id: " + item.getDesignId()));
+                try {
+                    design.lock();
+                } catch (IllegalStateException ex) {
+                    throw new BusinessRuleException("DESIGN_MUST_BE_SAVED", ex.getMessage());
+                }
+                designRepository.save(design);
             }
-            designRepository.save(design);
 
             ProductInventory inventory = productInventoryRepository.findByProductVariantId(item.getProductVariantId())
                     .orElseThrow(() -> new BusinessRuleException("PRODUCT_OUT_OF_STOCK", "Product inventory not found"));
@@ -199,16 +201,20 @@ public class OrderApplicationServiceImpl implements OrderApplicationService {
             throw new BusinessRuleException("VARIANT_NOT_AVAILABLE", "Variant is not available");
         }
 
-        Design design = designRepository.findById(item.designId())
-                .orElseThrow(() -> new NotFoundException("DESIGN_NOT_FOUND", "Design not found with id: " + item.designId()));
-        if (!design.getCustomerId().equals(customerId)) {
-            throw new ForbiddenException("DESIGN_ACCESS_DENIED", "Design access denied");
-        }
-        if (design.getStatus() != DesignStatus.SAVED) {
-            throw new BusinessRuleException("DESIGN_MUST_BE_SAVED", "Design must be saved before ordering");
-        }
-        if (!design.getProductId().equals(product.getId()) || !design.getProductVariantId().equals(variant.getId())) {
-            throw new BusinessRuleException("DESIGN_PRODUCT_MISMATCH", "Design does not match requested product variant");
+        UUID designId = null;
+        if (item.designId() != null) {
+            Design design = designRepository.findById(item.designId())
+                    .orElseThrow(() -> new NotFoundException("DESIGN_NOT_FOUND", "Design not found with id: " + item.designId()));
+            if (!design.getCustomerId().equals(customerId)) {
+                throw new ForbiddenException("DESIGN_ACCESS_DENIED", "Design access denied");
+            }
+            if (design.getStatus() != DesignStatus.SAVED) {
+                throw new BusinessRuleException("DESIGN_MUST_BE_SAVED", "Design must be saved before ordering");
+            }
+            if (!design.getProductId().equals(product.getId()) || !design.getProductVariantId().equals(variant.getId())) {
+                throw new BusinessRuleException("DESIGN_PRODUCT_MISMATCH", "Design does not match requested product variant");
+            }
+            designId = design.getId();
         }
 
         ProductInventory inventory = productInventoryRepository.findByProductVariantId(variant.getId())
@@ -224,7 +230,7 @@ public class OrderApplicationServiceImpl implements OrderApplicationService {
         return OrderItem.create(
                 product.getId(),
                 variant.getId(),
-                design.getId(),
+                designId,
                 product.getName(),
                 Map.of(
                         "size", variant.getSize(),
