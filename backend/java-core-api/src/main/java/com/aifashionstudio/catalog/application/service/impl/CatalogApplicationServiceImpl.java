@@ -11,15 +11,19 @@ import com.aifashionstudio.catalog.domain.exception.InvalidCatalogStatusTransiti
 import com.aifashionstudio.catalog.domain.exception.InvalidCatalogUpdateException;
 import com.aifashionstudio.catalog.domain.model.Catalog;
 import com.aifashionstudio.catalog.domain.model.CatalogStatus;
+import com.aifashionstudio.catalog.domain.model.ProductImage;
 import com.aifashionstudio.catalog.domain.repository.CatalogRepository;
+import com.aifashionstudio.catalog.domain.repository.ProductImageRepository;
 import com.aifashionstudio.catalog.domain.service.CatalogDomainService;
 import com.aifashionstudio.shared.exception.NotFoundException;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +32,7 @@ import java.util.UUID;
 //  giúp dễ dàng khởi tạo các dependency thông qua constructor injection.
 public class CatalogApplicationServiceImpl implements CatalogApplicationService {
     private final CatalogRepository catalogRepository;
+    private final ProductImageRepository productImageRepository;
     private final CatalogDomainService catalogDomainService;
     private final CatalogApplicationMapper catalogApplicationMapper;
 
@@ -114,11 +119,34 @@ public class CatalogApplicationServiceImpl implements CatalogApplicationService 
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<CatalogResult> getPublicProducts(String name) {
-        return findCatalogs(CatalogStatus.ACTIVE, name)
+        var products = findCatalogs(CatalogStatus.ACTIVE, name);
+        var thumbnailUrls = getThumbnailUrls(products);
+
+        return products
                 .stream()
-                .map(catalogApplicationMapper::toResult)
+                .map(product -> catalogApplicationMapper.toResult(product, thumbnailUrls.get(product.getId())))
                 .toList();
+    }
+
+    private Map<UUID, String> getThumbnailUrls(List<Catalog> products) {
+        if (products.isEmpty()) {
+            return Map.of();
+        }
+
+        var productIds = products.stream()
+                .map(Catalog::getId)
+                .toList();
+
+        return productImageRepository
+                .findByProductIdInOrderByProductIdAscThumbnailDescSortOrderAsc(productIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        image -> image.getProduct().getId(),
+                        ProductImage::getImageUrl,
+                        (existing, ignored) -> existing
+                ));
     }
 
     private Catalog getCatalogOrThrow(UUID id) {

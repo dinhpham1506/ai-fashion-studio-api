@@ -1,4 +1,5 @@
 using AiFashionStudio.Platform.Domain.Invoice.Entities;
+using AiFashionStudio.Platform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -11,9 +12,10 @@ public class InvoiceItemConfiguration : IEntityTypeConfiguration<InvoiceItem>
     /// </summary>
     public void Configure(EntityTypeBuilder<InvoiceItem> builder)
     {
-        builder.ToTable("invoice_items");
+        builder.ToTable("invoice_items", DatabaseSchemas.Payment);
         builder.HasKey(invoiceItem => invoiceItem.Id);
 
+        builder.Property(invoiceItem => invoiceItem.Id).HasColumnName("id");
         builder.Property(invoiceItem => invoiceItem.ProductNameSnapshot).HasColumnName("product_name_snapshot").IsRequired();
         builder.Property(invoiceItem => invoiceItem.VariantSnapshot).HasColumnName("variant_snapshot");
         builder.Property(invoiceItem => invoiceItem.Quantity).HasColumnName("quantity");

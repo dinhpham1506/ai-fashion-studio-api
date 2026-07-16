@@ -70,7 +70,7 @@ When adding the PostgreSQL server in pgAdmin, use `postgres` as the host and `54
 | `payment.events` | C# Payment Service | Java Order Service |
 | `design.events` | Java Design/Try-On Service | AI mock worker |
 | `tryon.events` | AI mock worker | Java Try-On Service |
-| `feedback.events` | Java Feedback Service | optional notification/admin |
+| `feedback.events` | C# Feedback Service | optional notification/admin |
 | `notification.events` | any backend service | notification worker later |
 
 ## MVP Database Schemas

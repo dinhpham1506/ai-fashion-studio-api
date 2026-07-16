@@ -20,4 +20,6 @@ public interface ProductVariantRepository {
     Optional<ProductVariant> findBySku(String sku);
 
     boolean existsBySku(String sku);
+
+    boolean existsBySkuAndIdNot(String sku, UUID id);
 }

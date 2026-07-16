@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS catalog.products (
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT ck_products_base_price CHECK (base_price >= 0),
-  CONSTRAINT ck_products_status CHECK (status IN ('DRAFT', 'ACTIVE', 'INACTIVE'))
+  CONSTRAINT ck_products_status CHECK (status IN ('DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED'))
 );
 
 CREATE TABLE IF NOT EXISTS catalog.product_variants (
@@ -186,7 +186,7 @@ CREATE TABLE IF NOT EXISTS ordering.order_items (
   order_id UUID NOT NULL REFERENCES ordering.orders(id),
   product_id UUID NOT NULL REFERENCES catalog.products(id),
   product_variant_id UUID NOT NULL REFERENCES catalog.product_variants(id),
-  design_id UUID NOT NULL REFERENCES design.designs(id),
+  design_id UUID REFERENCES design.designs(id),
   product_name_snapshot VARCHAR(255) NOT NULL,
   variant_snapshot JSONB NOT NULL,
   quantity INT NOT NULL,

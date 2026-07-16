@@ -41,12 +41,12 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.CreatePayment
             // Kết quả luôn < 9_007_199_254_740_991 (giới hạn PayOS/safe-integer), unique index ở DB chặn nốt trường hợp trùng còn sót.
             var orderCode = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000 + RandomNumberGenerator.GetInt32(0, 1000);
 
-            var order = PaymentOrder.Create(command.UserId, orderCode, command.Amount, command.Description);
+            var order = PaymentOrder.Create(command.UserId, orderCode, command.Amount, command.Description, command.OrderId);
 
             await _paymentOrderRepository.AddAsync(order, cancellationToken);
 
             var link = await _gatewayService.CreatePaymentLinkAsync(
-                new PaymentLinkRequest(orderCode, command.Amount, command.Description, ReturnUrl: "", CancelUrl: ""),
+                new PaymentLinkRequest(orderCode, command.Amount, BuildPayOsDescription(orderCode), ReturnUrl: "", CancelUrl: ""),
                 cancellationToken);
 
             order.AttachPaymentLink(link.PaymentLink);
@@ -55,6 +55,14 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.CreatePayment
             return new CreatePaymentLinkResponse(orderCode, link.CheckOutUrl, link.QrCode, command.Amount, order.Status.ToString().ToUpperInvariant());
 
 
+        }
+
+        private static string BuildPayOsDescription(long orderCode)
+        {
+            var orderCodeText = orderCode.ToString();
+            var suffix = orderCodeText.Length <= 18 ? orderCodeText : orderCodeText[^18..];
+
+            return $"AFS {suffix}";
         }
     }
 }

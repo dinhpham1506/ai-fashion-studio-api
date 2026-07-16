@@ -1,5 +1,6 @@
 using AiFashionStudio.Platform.Domain.Identity.Entities;
 using AiFashionStudio.Platform.Domain.Identity.Enums;
+using AiFashionStudio.Platform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -9,9 +10,10 @@ public class RoleConfiguration : IEntityTypeConfiguration<Role>
 {
     public void Configure(EntityTypeBuilder<Role> builder)
     {
-        builder.ToTable("roles");
+        builder.ToTable("roles", DatabaseSchemas.Identity);
         builder.HasKey(role => role.Id);
 
+        builder.Property(role => role.Id).HasColumnName("id");
         builder.Property(role => role.Code)
             .HasColumnName("code")
             .HasMaxLength(50)

@@ -4,6 +4,7 @@ import com.aifashionstudio.shared.response.ApiError;
 import com.aifashionstudio.shared.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -21,6 +22,17 @@ public class GlobalExceptionHandler  {
         // CONFLICT là trạng thái HTTP 409
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(
+                        ex.getMessage(),
+                        List.of(new ApiError(null, ex.getCode(),
+                                ex.getMessage()))
+                ));
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiResponse> handleForbidden(ForbiddenException ex) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error(
                         ex.getMessage(),
                         List.of(new ApiError(null, ex.getCode(),
@@ -55,6 +67,34 @@ public class GlobalExceptionHandler  {
                                 ex.getMessage()))
                 ));
     }
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<ApiResponse> handleServiceUnavailable(ServiceUnavailableException ex) {
+        // SERVICE_UNAVAILABLE là trạng thái HTTP 503, dùng khi một dịch vụ phụ thuộc
+        // (AI image generation, object storage...) tạm thời không phản hồi được
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(
+                        ex.getMessage(),
+                        List.of(new ApiError(null, ex.getCode(),
+                                ex.getMessage()))
+                ));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse> handleValidation(MethodArgumentNotValidException ex) {
+        List<ApiError> errors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(error -> new ApiError(
+                        error.getField(),
+                        "VALIDATION_FAILED",
+                        error.getDefaultMessage()
+                ))
+                .toList();
+
+        return ResponseEntity
+                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ApiResponse.error("Validation failed", errors));
+    }
 }
-
-

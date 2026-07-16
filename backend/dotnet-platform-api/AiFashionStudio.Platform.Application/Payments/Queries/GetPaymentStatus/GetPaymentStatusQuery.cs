@@ -8,5 +8,5 @@ using System.Threading.Tasks;
 
 namespace AiFashionStudio.Platform.Application.Payments.Queries.GetPaymentStatus
 {
-    public record GetPaymentStatusQuery(Guid UserId, long OrderCode) : IRequest<PaymentStatusResponse>;
+    public record GetPaymentStatusQuery(Guid UserId, Guid? PaymentId = null, Guid? OrderId = null) : IRequest<PaymentStatusResponse>;
 }

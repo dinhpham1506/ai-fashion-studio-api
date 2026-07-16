@@ -25,8 +25,22 @@ public class ProductImagePersistenceAdapter implements ProductImageRepository {
     }
 
     @Override
+    public Optional<ProductImage> findById(UUID id) {
+        return jpaProductImageRepository.findById(id)
+                .map(mapper::toDomain);
+    }
+
+    @Override
     public List<ProductImage> findByProductIdOrderBySortOrderAsc(UUID productId) {
         return jpaProductImageRepository.findByProductIdOrderBySortOrderAsc(productId)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<ProductImage> findByProductIdInOrderByProductIdAscThumbnailDescSortOrderAsc(List<UUID> productIds) {
+        return jpaProductImageRepository.findByProductIdInOrderByProductIdAscThumbnailDescSortOrderAsc(productIds)
                 .stream()
                 .map(mapper::toDomain)
                 .toList();
@@ -42,5 +56,11 @@ public class ProductImagePersistenceAdapter implements ProductImageRepository {
     @Transactional
     public void deleteByProductId(UUID productId) {
         jpaProductImageRepository.deleteByProductId(productId);
+    }
+
+    @Override
+    @Transactional
+    public void delete(ProductImage productImage) {
+        jpaProductImageRepository.delete(mapper.toEntity(productImage));
     }
 }

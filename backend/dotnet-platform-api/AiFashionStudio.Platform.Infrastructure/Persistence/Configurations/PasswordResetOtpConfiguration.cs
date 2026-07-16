@@ -1,4 +1,5 @@
 ﻿using AiFashionStudio.Platform.Domain.Identity.Entities;
+using AiFashionStudio.Platform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,9 +9,10 @@ public class PasswordResetOtpConfiguration : IEntityTypeConfiguration<PasswordRe
 {
     public void Configure(EntityTypeBuilder<PasswordResetByOtp> builder)
     {
-        builder.ToTable("password_reset_otps");
+        builder.ToTable("password_reset_otps", DatabaseSchemas.Identity);
         builder.HasKey(otp => otp.Id);
 
+        builder.Property(otp => otp.Id).HasColumnName("id");
         builder.Property(otp => otp.UserId).HasColumnName("user_id");
         builder.Property(otp => otp.OtpHash).HasColumnName("otp_hash").IsRequired();
         builder.Property(otp => otp.ResetTokenHash).HasColumnName("reset_token_hash");

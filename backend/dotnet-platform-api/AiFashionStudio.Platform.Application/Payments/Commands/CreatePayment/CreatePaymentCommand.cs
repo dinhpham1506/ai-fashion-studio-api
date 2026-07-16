@@ -8,5 +8,6 @@ using System.Threading.Tasks;
 
 namespace AiFashionStudio.Platform.Application.Payments.Commands
 {
-    public record CreatePaymentCommand(Guid UserId, int Amount, string Description) : IRequest<CreatePaymentLinkResponse>;
+    /// <param name="OrderId">ID đơn hàng bên Java Order Service (optional) — dùng để correlate trong event PaymentSucceeded.</param>
+    public record CreatePaymentCommand(Guid UserId, int Amount, string Description, Guid? OrderId = null) : IRequest<CreatePaymentLinkResponse>;
 }

@@ -1,6 +1,8 @@
 using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
 using AiFashionStudio.Platform.Application.Common.Interfaces.IServices;
 using AiFashionStudio.Platform.Infrastructure.Identity;
+using AiFashionStudio.Platform.Infrastructure.Integration;
+using AiFashionStudio.Platform.Infrastructure.Messaging;
 using AiFashionStudio.Platform.Infrastructure.Payment;
 using AiFashionStudio.Platform.Infrastructure.Pdf;
 using AiFashionStudio.Platform.Infrastructure.Persistence;
@@ -21,12 +23,37 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("Default")));
+            options.UseNpgsql(configuration.GetConnectionString("Default"),
+                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DatabaseSchemas.Platform)));
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
         services.Configure<SmtpSettings>(configuration.GetSection(SmtpSettings.SectionName));
         services.Configure<PayOsSettings>(configuration.GetSection(PayOsSettings.SectionName));
         services.Configure<MinioSettings>(configuration.GetSection(MinioSettings.SectionName));
+        services.Configure<JavaCoreApiSettings>(configuration.GetSection(JavaCoreApiSettings.SectionName));
+        services.Configure<KafkaSettings>(configuration.GetSection(KafkaSettings.SectionName));
+        services.Configure<GeminiSettings>(configuration.GetSection(GeminiSettings.SectionName));
+
+        // Staff Gateway gọi sang java-core-api qua typed HttpClient
+        var javaCoreApiSettings = configuration.GetSection(JavaCoreApiSettings.SectionName).Get<JavaCoreApiSettings>()
+            ?? new JavaCoreApiSettings();
+        services.AddHttpClient<IJavaCoreApiClient, JavaCoreApiClient>(client =>
+        {
+            if (!string.IsNullOrWhiteSpace(javaCoreApiSettings.BaseUrl))
+            {
+                client.BaseAddress = new Uri(javaCoreApiSettings.BaseUrl.TrimEnd('/') + "/");
+            }
+            client.Timeout = TimeSpan.FromSeconds(javaCoreApiSettings.TimeoutSeconds);
+        });
+
+        // AI Chat gọi Gemini (LLM free tier) để sinh câu trả lời tự nhiên
+        var geminiSettings = configuration.GetSection(GeminiSettings.SectionName).Get<GeminiSettings>()
+            ?? new GeminiSettings();
+        services.AddHttpClient<IGeminiChatClient, GeminiChatClient>(client =>
+        {
+            client.BaseAddress = new Uri(geminiSettings.BaseUrl.TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(geminiSettings.TimeoutSeconds);
+        });
 
         // Entity chưa có repository riêng vẫn inject được IBaseRepository<TEntity>
         services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
@@ -48,6 +75,10 @@ public static class DependencyInjection
         services.AddSingleton<IPaymentGatewayService, PayOsPaymentGatewayService>();
         services.AddSingleton<IInvoicePdfGenerator, QuestPdfInvoiceGenerator>();
         services.AddSingleton<IFileStorage, MinioFileStorage>();
+
+        // Kafka: producer publish PaymentSucceeded/PaymentFailed, consumer nhận OrderCreated từ Java
+        services.AddSingleton<IPaymentEventPublisher, KafkaPaymentEventPublisher>();
+        services.AddHostedService<OrderCreatedConsumer>();
 
         return services;
     }

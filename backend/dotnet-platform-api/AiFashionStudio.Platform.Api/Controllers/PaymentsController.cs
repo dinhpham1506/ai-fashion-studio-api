@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AiFashionStudio.Platform.Api.Controllers;
 
-public record CreatePaymentRequest(int Amount, string Description);
+public record CreatePaymentRequest(int Amount, string Description, Guid? OrderId = null);
 
 [ApiController]
 [Route("api/payments")]
@@ -41,7 +41,7 @@ public class PaymentsController : ControllerBase
         }
 
         var result = await _sender.Send(
-            new CreatePaymentCommand(userId, request.Amount, request.Description), cancellationToken);
+            new CreatePaymentCommand(userId, request.Amount, request.Description, request.OrderId), cancellationToken);
         return StatusCode(StatusCodes.Status201Created, ApiResponse.Ok(result, "Payment link created"));
     }
 
@@ -72,20 +72,38 @@ public class PaymentsController : ControllerBase
     }
 
     /// <summary>
-    /// Gets the payment status for an order.
+    /// Gets the payment status by payment ID.
     /// </summary>
-    /// <param name="orderCode">The order code to look up.</param>
+    /// <param name="paymentId">The payment ID to look up.</param>
     /// <returns>An <see cref="IActionResult"/> containing the payment status, or an unauthorized response if the token is invalid.</returns>
     [Authorize]
-    [HttpGet("{orderCode:long}")]
-    public async Task<IActionResult> GetStatus(long orderCode, CancellationToken cancellationToken)
+    [HttpGet("{paymentId:guid}")]
+    public async Task<IActionResult> GetByPaymentId(Guid paymentId, CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId))
         {
             return Unauthorized(ApiResponse.Fail("Invalid token", Array.Empty<ApiError>()));
         }
 
-        var result = await _sender.Send(new GetPaymentStatusQuery(userId, orderCode), cancellationToken);
+        var result = await _sender.Send(new GetPaymentStatusQuery(userId, PaymentId: paymentId), cancellationToken);
+        return Ok(ApiResponse.Ok(result));
+    }
+
+    /// <summary>
+    /// Gets the payment status by source order ID.
+    /// </summary>
+    /// <param name="orderId">The source order ID to look up.</param>
+    /// <returns>An <see cref="IActionResult"/> containing the payment status, or an unauthorized response if the token is invalid.</returns>
+    [Authorize]
+    [HttpGet("order/{orderId:guid}")]
+    public async Task<IActionResult> GetByOrderId(Guid orderId, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized(ApiResponse.Fail("Invalid token", Array.Empty<ApiError>()));
+        }
+
+        var result = await _sender.Send(new GetPaymentStatusQuery(userId, OrderId: orderId), cancellationToken);
         return Ok(ApiResponse.Ok(result));
     }
 
