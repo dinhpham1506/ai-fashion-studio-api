@@ -12,11 +12,6 @@ public static class AiChatConversationAccess
             return;
         }
 
-        if (!requesterId.HasValue)
-        {
-            return;
-        }
-
         if (conversation.UserId != requesterId)
         {
             throw new ForbiddenException("AI_CHAT_CONVERSATION_FORBIDDEN", "You cannot access this conversation");

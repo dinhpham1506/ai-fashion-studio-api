@@ -10,7 +10,13 @@ public record AiChatClientContext(
     IReadOnlyDictionary<string, string?>? CurrentFilters,
     IReadOnlyCollection<Guid>? VisibleProductIds,
     string? SelectedSize,
-    string? SelectedColor);
+    string? SelectedColor,
+    Guid? SelectedProductVariantId = null,
+    Guid? DesignId = null,
+    int? Quantity = null,
+    string? ReceiverName = null,
+    string? ReceiverPhone = null,
+    string? ShippingAddress = null);
 
 public record AiChatProductCard(
     string Type,
@@ -104,6 +110,50 @@ public record ProductDetailResponse(
     DateTime? UpdatedAt,
     IReadOnlyCollection<ProductImageResponse> Images,
     IReadOnlyCollection<ProductVariantResponse> Variants);
+
+public record AddCartItemRequest(
+    Guid ProductId,
+    Guid ProductVariantId,
+    Guid DesignId,
+    int Quantity);
+
+public record UpdateCartItemRequest(int Quantity);
+
+public record CheckoutCartRequest(
+    string ReceiverName,
+    string ReceiverPhone,
+    string ShippingAddress);
+
+public record CartResponse(
+    Guid Id,
+    Guid CustomerId,
+    IReadOnlyCollection<CartItemResponse> Items,
+    int TotalQuantity,
+    decimal TotalAmount);
+
+public record CartItemResponse(
+    Guid Id,
+    Guid ProductId,
+    string ProductName,
+    Guid ProductVariantId,
+    string? Sku,
+    string? Size,
+    string? Color,
+    string? Material,
+    Guid DesignId,
+    string? DesignName,
+    string? PreviewImageUrl,
+    int Quantity,
+    int AvailableQuantity,
+    decimal UnitPrice,
+    decimal TotalPrice);
+
+public record CartCheckoutResponse(
+    Guid OrderId,
+    string OrderCode,
+    decimal TotalAmount,
+    string PaymentStatus,
+    string OrderStatus);
 
 public record OrderStatusHistoryResponse(
     Guid Id,

@@ -1,6 +1,6 @@
 # Database Design — ai-fashion-studio
 
-**1 PostgreSQL** (`ai_fashion_studio_db`), **18 bảng** chia **8 schema** theo service boundary.
+**1 PostgreSQL** (`ai_fashion_studio_db`), **20 bảng** chia **8 schema** theo service boundary.
 DDL thật (source of truth): [infra/postgres/init/](../infra/postgres/init/).
 
 ## Quy ước chung
@@ -20,7 +20,7 @@ DDL thật (source of truth): [infra/postgres/init/](../infra/postgres/init/).
 | catalog | products, product_variants, product_images, product_inventory | Java |
 | design | designs, design_layers | Java |
 | ai_tryon | tryon_requests, tryon_results | Java |
-| ordering | orders, order_items, order_status_history | Java |
+| ordering | carts, cart_items, orders, order_items, order_status_history | Java |
 | feedback | feedbacks | C# |
 
 ## Boundary rule

@@ -14,6 +14,24 @@ public interface IJavaCoreApiClient
     Task<ProductDetailResponse> GetPublicProductDetailAsync(
         Guid productId, CancellationToken cancellationToken);
 
+    Task<CartResponse> GetCartAsync(
+        Guid customerId, CancellationToken cancellationToken);
+
+    Task<CartResponse> AddCartItemAsync(
+        Guid customerId, AddCartItemRequest request, CancellationToken cancellationToken);
+
+    Task<CartResponse> UpdateCartItemAsync(
+        Guid customerId, Guid cartItemId, UpdateCartItemRequest request, CancellationToken cancellationToken);
+
+    Task<CartResponse> RemoveCartItemAsync(
+        Guid customerId, Guid cartItemId, CancellationToken cancellationToken);
+
+    Task<CartResponse> ClearCartAsync(
+        Guid customerId, CancellationToken cancellationToken);
+
+    Task<CartCheckoutResponse> CheckoutCartAsync(
+        Guid customerId, CheckoutCartRequest request, CancellationToken cancellationToken);
+
     Task<OrderDetailResponse> GetOrderDetailAsync(
         Guid orderId, Guid requesterId, string? userRole, CancellationToken cancellationToken);
 

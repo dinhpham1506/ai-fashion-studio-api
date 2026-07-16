@@ -48,6 +48,70 @@ public class JavaCoreApiClient : IJavaCoreApiClient
         return await SendDirectAsync<ProductDetailResponse>(request, cancellationToken);
     }
 
+    public async Task<CartResponse> GetCartAsync(Guid customerId, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "api/cart");
+        request.Headers.TryAddWithoutValidation("X-User-Id", customerId.ToString());
+        return await SendDirectAsync<CartResponse>(request, cancellationToken);
+    }
+
+    public async Task<CartResponse> AddCartItemAsync(
+        Guid customerId,
+        AddCartItemRequest requestBody,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/cart/items")
+        {
+            Content = JsonContent.Create(requestBody, options: JsonOptions)
+        };
+        request.Headers.TryAddWithoutValidation("X-User-Id", customerId.ToString());
+        return await SendDirectAsync<CartResponse>(request, cancellationToken);
+    }
+
+    public async Task<CartResponse> UpdateCartItemAsync(
+        Guid customerId,
+        Guid cartItemId,
+        UpdateCartItemRequest requestBody,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Patch, $"api/cart/items/{cartItemId}")
+        {
+            Content = JsonContent.Create(requestBody, options: JsonOptions)
+        };
+        request.Headers.TryAddWithoutValidation("X-User-Id", customerId.ToString());
+        return await SendDirectAsync<CartResponse>(request, cancellationToken);
+    }
+
+    public async Task<CartResponse> RemoveCartItemAsync(
+        Guid customerId,
+        Guid cartItemId,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, $"api/cart/items/{cartItemId}");
+        request.Headers.TryAddWithoutValidation("X-User-Id", customerId.ToString());
+        return await SendDirectAsync<CartResponse>(request, cancellationToken);
+    }
+
+    public async Task<CartResponse> ClearCartAsync(Guid customerId, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, "api/cart");
+        request.Headers.TryAddWithoutValidation("X-User-Id", customerId.ToString());
+        return await SendDirectAsync<CartResponse>(request, cancellationToken);
+    }
+
+    public async Task<CartCheckoutResponse> CheckoutCartAsync(
+        Guid customerId,
+        CheckoutCartRequest requestBody,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/cart/checkout")
+        {
+            Content = JsonContent.Create(requestBody, options: JsonOptions)
+        };
+        request.Headers.TryAddWithoutValidation("X-User-Id", customerId.ToString());
+        return await SendDirectAsync<CartCheckoutResponse>(request, cancellationToken);
+    }
+
     public async Task<OrderDetailResponse> GetOrderDetailAsync(
         Guid orderId, Guid requesterId, string? userRole, CancellationToken cancellationToken)
     {

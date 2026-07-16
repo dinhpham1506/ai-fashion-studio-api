@@ -9,10 +9,26 @@ namespace AiFashionStudio.Platform.Tests.AiChat;
 public class AiChatConversationAccessTests
 {
     [Fact]
-    public async Task GetConversation_Should_Allow_Anonymous_Request_To_Resume_Widget_Conversation()
+    public async Task GetConversation_Should_Reject_Anonymous_Request_For_User_Conversation()
     {
         var ownerId = Guid.NewGuid();
         var conversation = AiChatConversation.Start(ownerId, "CUSTOMER", "WEB", "PRODUCT_DETAIL", Guid.NewGuid(), null);
+        var conversations = new InMemoryRepository<AiChatConversation>();
+        var messages = new InMemoryRepository<AiChatMessage>();
+        await conversations.AddAsync(conversation);
+
+        var handler = new GetAiChatConversationQueryHandler(conversations, messages);
+
+        var exception = await Assert.ThrowsAsync<ForbiddenException>(
+            () => handler.Handle(new GetAiChatConversationQuery(conversation.Id, UserId: null), CancellationToken.None));
+
+        Assert.Equal("AI_CHAT_CONVERSATION_FORBIDDEN", exception.Errors.Single().Code);
+    }
+
+    [Fact]
+    public async Task GetConversation_Should_Allow_Anonymous_Request_For_Guest_Conversation()
+    {
+        var conversation = AiChatConversation.Start(null, null, "WEB", "PRODUCT_DETAIL", Guid.NewGuid(), null);
         var conversations = new InMemoryRepository<AiChatConversation>();
         var messages = new InMemoryRepository<AiChatMessage>();
         await conversations.AddAsync(conversation);

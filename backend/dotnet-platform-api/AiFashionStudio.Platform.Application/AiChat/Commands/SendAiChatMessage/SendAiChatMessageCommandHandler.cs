@@ -75,9 +75,14 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
                 metadataJson: SerializeOrNull(new { request.Page, request.ClientContext })),
             cancellationToken);
 
-        var intent = DetectIntent(request);
+        var intentProfile = DetectIntentProfile(request);
+        var intent = intentProfile.Intent;
+        var verifiedMemory = await BuildVerifiedMemoryAsync(request, cancellationToken);
         var response = intent switch
         {
+            "ADD_TO_CART" => await HandleAddToCartAsync(conversation.Id, request, cancellationToken),
+            "CART_CHECKOUT" => await HandleCartCheckoutAsync(conversation.Id, request, cancellationToken),
+            "CART_STATUS" => await HandleCartStatusAsync(conversation.Id, request, cancellationToken),
             "CHECKOUT_HELP" => BuildCheckoutHelpResponse(conversation.Id),
             "SIZE_ADVICE" => await HandleSizeAdviceAsync(conversation.Id, request, cancellationToken),
             "ORDER_STATUS_HELP" => await HandleOrderHelpAsync(conversation.Id, request, cancellationToken),
@@ -86,7 +91,8 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
             _ => BuildFallbackResponse(conversation.Id, request)
         };
 
-        response = await RefineReplyWithLlmAsync(response, request, cancellationToken);
+        response = await RefineReplyWithLlmAsync(response, request, verifiedMemory, intentProfile, cancellationToken);
+        response = AiChatPolicyGuard.Apply(response);
 
         await _messageRepository.AddAsync(
             AiChatMessage.Create(
@@ -99,9 +105,14 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
                     response.Cards,
                     response.SuggestedReplies,
                     response.Recommendation,
-                    response.SupportTicket
+                    response.SupportTicket,
+                    intentProfile,
+                    verifiedMemory,
+                    policyGuardApplied = true
                 })),
             cancellationToken);
+
+        await TrackLearningEventAsync(conversation.Id, request, response, intentProfile, verifiedMemory, cancellationToken);
 
         return response;
     }
@@ -113,6 +124,8 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
     private async Task<AiChatResponse> RefineReplyWithLlmAsync(
         AiChatResponse response,
         SendAiChatMessageCommand request,
+        VerifiedConversationMemory verifiedMemory,
+        AiChatIntentProfile intentProfile,
         CancellationToken cancellationToken)
     {
         var recentMessages = await _messageRepository.FindAsync(
@@ -134,14 +147,8 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
         {
             templateReply = response.Reply,
             intent = response.Intent,
-            page = request.Page,
-            clientContext = request.ClientContext,
-            extractedUserSignals = new
-            {
-                heightCm = ExtractCentimeters(request.Message),
-                weightKg = ExtractKilograms(request.Message),
-                fitPreference = ExtractFitPreference(request.Message)
-            },
+            intentProfile,
+            verifiedMemory,
             recentTurns,
             cards = response.Cards,
             recommendation = response.Recommendation,
@@ -227,6 +234,184 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
             "PRODUCT_SEARCH",
             cards,
             new[] { "Tư vấn size giúp tôi", "Mẫu nào đáng mua nhất?", "Tìm mẫu rẻ hơn" });
+    }
+
+    private async Task<AiChatResponse> HandleCartStatusAsync(
+        Guid conversationId,
+        SendAiChatMessageCommand request,
+        CancellationToken cancellationToken)
+    {
+        if (request.UserId is null)
+        {
+            return BuildLoginRequiredCartResponse(conversationId);
+        }
+
+        try
+        {
+            var cart = await _javaCoreApiClient.GetCartAsync(request.UserId.Value, cancellationToken);
+            await TrackCartToolRunAsync(conversationId, "GetCart", new { request.UserId }, cart, cancellationToken);
+            return BuildCartStatusResponse(conversationId, cart);
+        }
+        catch (Exception exception) when (exception is AppValidationException
+            or ConflictException
+            or NotFoundException
+            or ForbiddenException)
+        {
+            await _toolRunRepository.AddAsync(
+                AiChatToolRun.Failed(conversationId, "GetCart", SerializeOrNull(new { request.UserId }), exception.Message),
+                cancellationToken);
+
+            return new AiChatResponse(
+                conversationId,
+                "Em chưa đọc được giỏ hàng hiện tại. Anh/chị thử đăng nhập lại hoặc mở trang giỏ hàng, nếu vẫn lỗi em sẽ tạo yêu cầu hỗ trợ cho mình.",
+                "CART_STATUS",
+                Array.Empty<AiChatProductCard>(),
+                new[] { "Mở giỏ hàng", "Tạo yêu cầu hỗ trợ", "Tìm sản phẩm khác" });
+        }
+    }
+
+    private async Task<AiChatResponse> HandleAddToCartAsync(
+        Guid conversationId,
+        SendAiChatMessageCommand request,
+        CancellationToken cancellationToken)
+    {
+        if (request.UserId is null)
+        {
+            return BuildLoginRequiredCartResponse(conversationId);
+        }
+
+        var productId = request.Page?.ProductId;
+        var productVariantId = request.ClientContext?.SelectedProductVariantId;
+        var designId = request.ClientContext?.DesignId;
+        var quantity = Math.Max(request.ClientContext?.Quantity ?? 1, 1);
+
+        if (productId is null || productVariantId is null || designId is null)
+        {
+            var missing = new List<string>();
+            if (productId is null)
+            {
+                missing.Add("sản phẩm");
+            }
+
+            if (productVariantId is null)
+            {
+                missing.Add("size/màu");
+            }
+
+            if (designId is null)
+            {
+                missing.Add("design đã lưu");
+            }
+
+            return new AiChatResponse(
+                conversationId,
+                $"Em chưa thêm vào giỏ được vì còn thiếu {string.Join(", ", missing)}. Anh/chị chọn đủ size/màu và lưu design trước, sau đó em thêm vào giỏ ngay cho mình.",
+                "ADD_TO_CART",
+                Array.Empty<AiChatProductCard>(),
+                new[] { "Chọn size", "Lưu design", "Tư vấn size giúp tôi" });
+        }
+
+        var addRequest = new AddCartItemRequest(productId.Value, productVariantId.Value, designId.Value, quantity);
+        try
+        {
+            var cart = await _javaCoreApiClient.AddCartItemAsync(request.UserId.Value, addRequest, cancellationToken);
+            await TrackCartToolRunAsync(conversationId, "AddCartItem", addRequest, cart, cancellationToken);
+
+            var total = cart.TotalAmount.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
+            return new AiChatResponse(
+                conversationId,
+                $"Em đã thêm sản phẩm vào giỏ cho anh/chị rồi ạ. Giỏ hiện có {cart.TotalQuantity} sản phẩm, tạm tính {total}đ; mình có thể kiểm tra lại giỏ hoặc tiến tới checkout luôn.",
+                "ADD_TO_CART",
+                BuildCartProductCards(cart),
+                new[] { "Xem giỏ hàng", "Checkout giỏ hàng", "Tìm thêm sản phẩm" });
+        }
+        catch (Exception exception) when (exception is AppValidationException
+            or ConflictException
+            or NotFoundException
+            or ForbiddenException)
+        {
+            await _toolRunRepository.AddAsync(
+                AiChatToolRun.Failed(conversationId, "AddCartItem", SerializeOrNull(addRequest), exception.Message),
+                cancellationToken);
+
+            return new AiChatResponse(
+                conversationId,
+                $"Em chưa thêm vào giỏ được: {exception.Message}. Anh/chị kiểm tra lại size/màu, tồn kho hoặc design đã lưu giúp em nhé.",
+                "ADD_TO_CART",
+                Array.Empty<AiChatProductCard>(),
+                new[] { "Chọn size khác", "Lưu lại design", "Tạo yêu cầu hỗ trợ" });
+        }
+    }
+
+    private async Task<AiChatResponse> HandleCartCheckoutAsync(
+        Guid conversationId,
+        SendAiChatMessageCommand request,
+        CancellationToken cancellationToken)
+    {
+        if (request.UserId is null)
+        {
+            return BuildLoginRequiredCartResponse(conversationId);
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ClientContext?.ReceiverName)
+            || string.IsNullOrWhiteSpace(request.ClientContext.ReceiverPhone)
+            || string.IsNullOrWhiteSpace(request.ClientContext.ShippingAddress))
+        {
+            return new AiChatResponse(
+                conversationId,
+                "Để checkout giỏ hàng, anh/chị cần nhập tên người nhận, số điện thoại và địa chỉ giao hàng trước. Khi form checkout có đủ thông tin, em sẽ tạo order từ giỏ cho mình.",
+                "CART_CHECKOUT",
+                Array.Empty<AiChatProductCard>(),
+                new[] { "Nhập thông tin giao hàng", "Xem lại giỏ hàng", "Tạo yêu cầu hỗ trợ" });
+        }
+
+        var checkoutRequest = new CheckoutCartRequest(
+            request.ClientContext.ReceiverName.Trim(),
+            request.ClientContext.ReceiverPhone.Trim(),
+            request.ClientContext.ShippingAddress.Trim());
+
+        try
+        {
+            var order = await _javaCoreApiClient.CheckoutCartAsync(request.UserId.Value, checkoutRequest, cancellationToken);
+            await _toolRunRepository.AddAsync(
+                AiChatToolRun.Succeeded(
+                    conversationId,
+                    "CheckoutCart",
+                    SerializeOrNull(checkoutRequest),
+                    SerializeOrNull(new
+                    {
+                        order.OrderId,
+                        order.OrderCode,
+                        order.TotalAmount,
+                        order.PaymentStatus,
+                        order.OrderStatus
+                    })),
+                cancellationToken);
+
+            var total = order.TotalAmount.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
+            return new AiChatResponse(
+                conversationId,
+                $"Em đã tạo đơn {order.OrderCode} từ giỏ hàng, tổng tiền {total}đ. Bước tiếp theo anh/chị mở thanh toán để tạo PayOS QR/link và hoàn tất đơn nhé.",
+                "CART_CHECKOUT",
+                Array.Empty<AiChatProductCard>(),
+                new[] { "Thanh toán đơn này", "Kiểm tra trạng thái đơn", "Tạo yêu cầu hỗ trợ" });
+        }
+        catch (Exception exception) when (exception is AppValidationException
+            or ConflictException
+            or NotFoundException
+            or ForbiddenException)
+        {
+            await _toolRunRepository.AddAsync(
+                AiChatToolRun.Failed(conversationId, "CheckoutCart", SerializeOrNull(checkoutRequest), exception.Message),
+                cancellationToken);
+
+            return new AiChatResponse(
+                conversationId,
+                $"Em chưa checkout giỏ hàng được: {exception.Message}. Anh/chị kiểm tra lại giỏ, tồn kho và thông tin giao hàng giúp em nhé.",
+                "CART_CHECKOUT",
+                Array.Empty<AiChatProductCard>(),
+                new[] { "Xem lại giỏ hàng", "Tạo yêu cầu hỗ trợ", "Chọn sản phẩm khác" });
+        }
     }
 
     private async Task<AiChatResponse> HandleSizeAdviceAsync(
@@ -519,19 +704,169 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
                 : new[] { "Tìm sản phẩm", "Tư vấn size", "Hỗ trợ đơn hàng" });
     }
 
-    private static string DetectIntent(SendAiChatMessageCommand request)
+    private async Task<VerifiedConversationMemory> BuildVerifiedMemoryAsync(
+        SendAiChatMessageCommand request,
+        CancellationToken cancellationToken)
+    {
+        var recentMessages = await _messageRepository.FindAsync(
+            message => message.ConversationId == request.ConversationId,
+            cancellationToken);
+
+        var recentIntentCounts = recentMessages
+            .Where(message => !string.IsNullOrWhiteSpace(message.Intent))
+            .GroupBy(message => message.Intent!)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+
+        var latestProductInterest = request.Page?.ProductId;
+        var latestOrderContext = request.Page?.OrderId ?? ExtractGuid(request.Message);
+        var behavior = BuildBehaviorContext(request, recentMessages);
+
+        return new VerifiedConversationMemory(
+            PageType: NormalizePageType(request.Page?.Type),
+            PageUrl: request.Page?.Url,
+            ProductId: latestProductInterest,
+            OrderId: latestOrderContext,
+            SelectedSize: NormalizeSize(request.ClientContext?.SelectedSize),
+            SelectedColor: NormalizeColor(request.ClientContext?.SelectedColor),
+            SelectedProductVariantId: request.ClientContext?.SelectedProductVariantId,
+            DesignId: request.ClientContext?.DesignId,
+            Quantity: request.ClientContext?.Quantity,
+            HasCheckoutShippingInfo: !string.IsNullOrWhiteSpace(request.ClientContext?.ReceiverName)
+                && !string.IsNullOrWhiteSpace(request.ClientContext?.ReceiverPhone)
+                && !string.IsNullOrWhiteSpace(request.ClientContext?.ShippingAddress),
+            CurrentFilters: request.ClientContext?.CurrentFilters,
+            VisibleProductIds: request.ClientContext?.VisibleProductIds,
+            HeightCm: ExtractCentimeters(request.Message),
+            WeightKg: ExtractKilograms(request.Message),
+            FitPreference: ExtractFitPreference(request.Message),
+            RecentIntentCounts: recentIntentCounts,
+            Behavior: behavior,
+            Sources: new[] { "PAGE_CONTEXT", "CLIENT_CONTEXT", "RECENT_CHAT", "MESSAGE_EXTRACTION" });
+    }
+
+    private async Task TrackLearningEventAsync(
+        Guid conversationId,
+        SendAiChatMessageCommand request,
+        AiChatResponse response,
+        AiChatIntentProfile intentProfile,
+        VerifiedConversationMemory verifiedMemory,
+        CancellationToken cancellationToken)
+    {
+        var eventPayload = new
+        {
+            eventType = "AI_CHAT_TURN_OBSERVED",
+            intentProfile,
+            response.Intent,
+            hasCards = response.Cards.Count > 0,
+            hasRecommendation = response.Recommendation is not null,
+            supportTicketCreated = response.SupportTicket is not null,
+            suggestedReplyCount = response.SuggestedReplies.Count,
+            userAuthenticated = request.UserId is not null,
+            pageType = verifiedMemory.PageType,
+            behavior = verifiedMemory.Behavior,
+            observedAt = DateTime.UtcNow
+        };
+
+        await _toolRunRepository.AddAsync(
+            AiChatToolRun.Succeeded(
+                conversationId,
+                "ConversationLearningEvent",
+                SerializeOrNull(new { request.ConversationId, request.UserId }),
+                SerializeOrNull(eventPayload)),
+            cancellationToken);
+    }
+
+    private static AiChatBehaviorContext BuildBehaviorContext(
+        SendAiChatMessageCommand request,
+        IEnumerable<AiChatMessage> recentMessages)
+    {
+        var normalized = NormalizeForIntent(request.Message);
+        var pageType = NormalizePageType(request.Page?.Type);
+        var repeatedSupportSignals = recentMessages.Count(message =>
+            string.Equals(message.Intent, "ORDER_STATUS_HELP", StringComparison.OrdinalIgnoreCase)
+            || ContainsAnyNormalized(NormalizeForIntent(message.Content), "gap loi", "khieu nai", "ho tro", "nhan vien"));
+
+        var buyingStage = pageType switch
+        {
+            "CHECKOUT" => "CHECKOUT",
+            "ORDER_DETAIL" => "POST_PURCHASE",
+            "PRODUCT_DETAIL" when request.ClientContext?.SelectedSize is not null => "DECISION",
+            "PRODUCT_DETAIL" => "CONSIDERATION",
+            "PRODUCT_LIST" => "DISCOVERY",
+            _ => ContainsAnyNormalized(normalized, "mua", "chot", "thanh toan", "them vao gio") ? "DECISION" : "DISCOVERY"
+        };
+
+        var urgency = ContainsAnyNormalized(
+            normalized,
+            "ngay",
+            "gap",
+            "nhanh",
+            "hom nay",
+            "da thanh toan roi",
+            "don bi ket")
+            ? "HIGH"
+            : "NORMAL";
+
+        var objection = ContainsAnyNormalized(normalized, "mac", "dat", "re hon", "giam gia")
+            ? "PRICE"
+            : ContainsAnyNormalized(normalized, "so khong vua", "khong vua", "size")
+                ? "FIT"
+                : ContainsAnyNormalized(normalized, "loi", "khieu nai", "chua cap nhat", "ket")
+                    ? "TRUST"
+                    : null;
+
+        var handoffRecommended = repeatedSupportSignals >= 2
+            || ContainsAnyNormalized(normalized, "nhan vien", "khieu nai", "hoan tien", "gap quan ly");
+
+        return new AiChatBehaviorContext(buyingStage, urgency, objection, handoffRecommended);
+    }
+
+    private static AiChatIntentProfile DetectIntentProfile(SendAiChatMessageCommand request)
     {
         var pageType = NormalizePageType(request.Page?.Type);
         var message = NormalizeForIntent(request.Message);
+        var scores = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ADD_TO_CART"] = 0,
+            ["CART_STATUS"] = 0,
+            ["CART_CHECKOUT"] = 0,
+            ["CHECKOUT_HELP"] = 0,
+            ["SIZE_ADVICE"] = 0,
+            ["ORDER_STATUS_HELP"] = 0,
+            ["PRODUCT_DETAIL_HELP"] = 0,
+            ["PRODUCT_SEARCH"] = 0,
+            ["GENERAL_HELP"] = 0.1
+        };
+        var signals = new List<string>();
+
+        if (pageType == "CART" || ContainsAnyNormalized(message, "gio hang", "cart", "trong gio"))
+        {
+            scores["CART_STATUS"] += pageType == "CART" ? 0.75 : 0.55;
+            signals.Add("cart_context");
+        }
+
+        if (ContainsAnyNormalized(message, "them vao gio", "add to cart", "bo vao gio", "cho vao gio", "chot mau nay", "lay mau nay"))
+        {
+            scores["ADD_TO_CART"] += pageType == "PRODUCT_DETAIL" ? 0.85 : 0.7;
+            signals.Add("add_to_cart_request");
+        }
+
+        if (ContainsAnyNormalized(message, "checkout gio", "checkout cart", "thanh toan gio", "dat hang tu gio", "chot gio hang"))
+        {
+            scores["CART_CHECKOUT"] += 0.9;
+            signals.Add("cart_checkout_request");
+        }
 
         if (pageType == "CHECKOUT" || ContainsAnyNormalized(message, "checkout", "qr", "payos", "link thanh toan", "loi thanh toan", "link loi"))
         {
-            return "CHECKOUT_HELP";
+            scores["CHECKOUT_HELP"] += pageType == "CHECKOUT" ? 0.75 : 0.55;
+            signals.Add("checkout_or_payment_link");
         }
 
         if (ContainsAnyNormalized(message, "size", "cao", "nang", "kg", "mac vua", "mac rong", "chon co", "chon size"))
         {
-            return "SIZE_ADVICE";
+            scores["SIZE_ADVICE"] += 0.7;
+            signals.Add("size_or_body_measurement");
         }
 
         if (pageType == "ORDER_DETAIL"
@@ -552,22 +887,41 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
                 "loi xu ly",
                 "van de voi don"))
         {
-            return "ORDER_STATUS_HELP";
+            scores["ORDER_STATUS_HELP"] += pageType == "ORDER_DETAIL" ? 0.8 : 0.65;
+            signals.Add("order_or_support_issue");
         }
 
         if (pageType == "PRODUCT_DETAIL"
             || ContainsAnyNormalized(message, "phoi", "chat lieu", "vai", "co mau", "mau nao", "form ao", "style"))
         {
-            return "PRODUCT_DETAIL_HELP";
+            scores["PRODUCT_DETAIL_HELP"] += pageType == "PRODUCT_DETAIL" ? 0.65 : 0.5;
+            signals.Add("product_detail_context");
         }
 
         if (pageType == "PRODUCT_LIST"
             || ContainsAnyNormalized(message, "tim", "vay", "ao", "quan", "san pham", "mau", "duoi", "gia"))
         {
-            return "PRODUCT_SEARCH";
+            scores["PRODUCT_SEARCH"] += pageType == "PRODUCT_LIST" ? 0.7 : 0.5;
+            signals.Add("product_discovery");
         }
 
-        return "GENERAL_HELP";
+        if (scores["ORDER_STATUS_HELP"] > 0 && scores["CHECKOUT_HELP"] > 0)
+        {
+            scores["ORDER_STATUS_HELP"] += 0.15;
+            signals.Add("payment_issue_needs_order_context");
+        }
+
+        var selected = scores
+            .OrderByDescending(score => score.Value)
+            .ThenBy(score => score.Key)
+            .First();
+
+        return new AiChatIntentProfile(
+            selected.Key,
+            Math.Min(selected.Value, 0.98),
+            signals.Count == 0 ? new[] { "fallback" } : signals.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            RequiresTool: selected.Key is "ADD_TO_CART" or "CART_STATUS" or "CART_CHECKOUT" or "PRODUCT_SEARCH" or "PRODUCT_DETAIL_HELP" or "SIZE_ADVICE" or "ORDER_STATUS_HELP",
+            HandoffRecommended: selected.Key == "ORDER_STATUS_HELP" && WantsSupportTicket(request.Message));
     }
 
     private static ProductSearch BuildProductSearch(string message)
@@ -832,6 +1186,76 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
             "thanh toan roi");
     }
 
+    private async Task TrackCartToolRunAsync(
+        Guid conversationId,
+        string toolName,
+        object? input,
+        CartResponse cart,
+        CancellationToken cancellationToken)
+    {
+        await _toolRunRepository.AddAsync(
+            AiChatToolRun.Succeeded(
+                conversationId,
+                toolName,
+                SerializeOrNull(input),
+                SerializeOrNull(new
+                {
+                    cart.Id,
+                    cart.TotalQuantity,
+                    cart.TotalAmount,
+                    itemCount = cart.Items.Count
+                })),
+            cancellationToken);
+    }
+
+    private static AiChatResponse BuildLoginRequiredCartResponse(Guid conversationId)
+    {
+        return new AiChatResponse(
+            conversationId,
+            "Để xem giỏ hàng, thêm sản phẩm vào giỏ hoặc checkout, anh/chị cần đăng nhập trước để em bảo vệ thông tin mua hàng của mình nhé.",
+            "CART_STATUS",
+            Array.Empty<AiChatProductCard>(),
+            new[] { "Đăng nhập", "Tìm sản phẩm", "Tư vấn size" });
+    }
+
+    private static AiChatResponse BuildCartStatusResponse(Guid conversationId, CartResponse cart)
+    {
+        if (cart.Items.Count == 0)
+        {
+            return new AiChatResponse(
+                conversationId,
+                "Giỏ hàng của anh/chị hiện đang trống. Anh/chị nói em kiểu áo/quần muốn tìm, em gợi ý mẫu hợp rồi mình thêm vào giỏ luôn nhé.",
+                "CART_STATUS",
+                Array.Empty<AiChatProductCard>(),
+                new[] { "Tìm áo thun", "Tìm sản phẩm đang có sẵn", "Tư vấn size" });
+        }
+
+        var total = cart.TotalAmount.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
+        var firstItems = cart.Items.Take(3).Select(item => $"{item.ProductName} x{item.Quantity}");
+        return new AiChatResponse(
+            conversationId,
+            $"Giỏ hàng của anh/chị có {cart.TotalQuantity} sản phẩm, tạm tính {total}đ. Một vài món trong giỏ: {string.Join(", ", firstItems)}. Nếu thông tin giao hàng đã đủ, mình checkout luôn được ạ.",
+            "CART_STATUS",
+            BuildCartProductCards(cart),
+            new[] { "Checkout giỏ hàng", "Tìm thêm sản phẩm", "Tạo yêu cầu hỗ trợ" });
+    }
+
+    private static IReadOnlyCollection<AiChatProductCard> BuildCartProductCards(CartResponse cart)
+    {
+        return cart.Items
+            .Take(5)
+            .Select(item => new AiChatProductCard(
+                "PRODUCT",
+                item.ProductId,
+                item.ProductName,
+                item.UnitPrice,
+                item.PreviewImageUrl,
+                $"/products/{item.ProductId}",
+                string.IsNullOrWhiteSpace(item.Size) ? Array.Empty<string>() : new[] { item.Size },
+                string.IsNullOrWhiteSpace(item.Color) ? Array.Empty<string>() : new[] { item.Color }))
+            .ToList();
+    }
+
     private static Guid? ExtractGuid(string message)
     {
         var match = GuidRegex().Match(message);
@@ -1008,6 +1432,39 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
 
     [GeneratedRegex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")]
     private static partial Regex GuidRegex();
+
+    private sealed record AiChatIntentProfile(
+        string Intent,
+        double Confidence,
+        IReadOnlyCollection<string> Signals,
+        bool RequiresTool,
+        bool HandoffRecommended);
+
+    private sealed record VerifiedConversationMemory(
+        string? PageType,
+        string? PageUrl,
+        Guid? ProductId,
+        Guid? OrderId,
+        string? SelectedSize,
+        string? SelectedColor,
+        Guid? SelectedProductVariantId,
+        Guid? DesignId,
+        int? Quantity,
+        bool HasCheckoutShippingInfo,
+        IReadOnlyDictionary<string, string?>? CurrentFilters,
+        IReadOnlyCollection<Guid>? VisibleProductIds,
+        int? HeightCm,
+        int? WeightKg,
+        string? FitPreference,
+        IReadOnlyDictionary<string, int> RecentIntentCounts,
+        AiChatBehaviorContext Behavior,
+        IReadOnlyCollection<string> Sources);
+
+    private sealed record AiChatBehaviorContext(
+        string BuyingStage,
+        string Urgency,
+        string? Objection,
+        bool HandoffRecommended);
 
     private sealed record ProductSearch(string Keyword, decimal? MaxPrice, string? Color);
 
