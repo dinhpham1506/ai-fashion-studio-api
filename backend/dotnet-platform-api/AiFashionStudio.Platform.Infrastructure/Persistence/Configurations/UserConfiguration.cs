@@ -1,5 +1,6 @@
 using AiFashionStudio.Platform.Domain.Identity.Entities;
 using AiFashionStudio.Platform.Domain.Identity.Enums;
+using AiFashionStudio.Platform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -9,9 +10,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)
     {
-        builder.ToTable("users");
+        builder.ToTable("users", DatabaseSchemas.Identity);
         builder.HasKey(user => user.Id);
 
+        builder.Property(user => user.Id).HasColumnName("id");
         builder.Property(user => user.Email).HasColumnName("email").HasMaxLength(255).IsRequired();
         builder.HasIndex(user => user.Email).IsUnique();
 

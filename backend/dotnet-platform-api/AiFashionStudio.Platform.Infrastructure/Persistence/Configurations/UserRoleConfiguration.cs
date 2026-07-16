@@ -1,4 +1,5 @@
 using AiFashionStudio.Platform.Domain.Identity.Entities;
+using AiFashionStudio.Platform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,9 +9,10 @@ public class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
 {
     public void Configure(EntityTypeBuilder<UserRole> builder)
     {
-        builder.ToTable("user_roles");
+        builder.ToTable("user_roles", DatabaseSchemas.Identity);
         builder.HasKey(userRole => userRole.Id);
 
+        builder.Property(userRole => userRole.Id).HasColumnName("id");
         builder.Property(userRole => userRole.UserId).HasColumnName("user_id");
         builder.Property(userRole => userRole.RoleId).HasColumnName("role_id");
         builder.Property(userRole => userRole.CreatedAt).HasColumnName("created_at");

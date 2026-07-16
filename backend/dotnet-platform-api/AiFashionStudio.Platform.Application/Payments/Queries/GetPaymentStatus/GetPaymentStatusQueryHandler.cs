@@ -24,19 +24,28 @@ namespace AiFashionStudio.Platform.Application.Payments.Queries.GetPaymentStatus
         }
 
         /// <summary>
-        /// Gets the payment status for the specified order.
+        /// Gets the payment status for the specified payment or order.
         /// </summary>
         /// <param name="query">The payment lookup criteria.</param>
         /// <param name="cancellationToken">A token to cancel the operation.</param>
-        /// <returns>The payment status response for the matching order.</returns>
-        /// <exception cref="NotFoundException">Thrown when no payment order matches the specified order code and user ID.</exception>
+        /// <returns>The payment status response for the matching payment.</returns>
+        /// <exception cref="NotFoundException">Thrown when no payment matches the specified criteria and user ID.</exception>
         public async Task<PaymentStatusResponse> Handle(GetPaymentStatusQuery query, CancellationToken cancellationToken)
         {
-            var order = await _paymentOrderRepository.GetByOrderCodeAndUserIdAsync(query.OrderCode, query.UserId, cancellationToken)
-                ?? throw new NotFoundException("PAYMENT_NOT_FOUND", "Payment order not found");
+            var order = query.PaymentId.HasValue
+                ? await _paymentOrderRepository.GetByIdAndUserIdAsync(query.PaymentId.Value, query.UserId, cancellationToken)
+                : query.OrderId.HasValue
+                    ? await _paymentOrderRepository.GetByOrderIdAndUserIdAsync(query.OrderId.Value, query.UserId, cancellationToken)
+                    : null;
+
+            if (order is null)
+            {
+                throw new NotFoundException("PAYMENT_NOT_FOUND", "Payment order not found");
+            }
 
             return new PaymentStatusResponse(
                 order.Id,
+                order.OrderId,
                 order.OrderCode,
                 order.Amount,
                 order.Status.ToString().ToUpperInvariant(),

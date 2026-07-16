@@ -16,6 +16,7 @@ import com.aifashionstudio.catalog.domain.repository.ProductVariantRepository;
 import com.aifashionstudio.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -31,6 +32,7 @@ public class ProductDetailApplicationServiceImpl implements ProductDetailApplica
     private final ProductCatalogApplicationMapper mapper;
 
     @Override
+    @Transactional(readOnly = true)
     public ProductDetailResult getPublicProductDetail(UUID productId) {
         Catalog product = catalogRepository.findById(productId)
                 .orElseThrow(() -> productNotFound(productId));

@@ -1,4 +1,5 @@
 using AiFashionStudio.Platform.Domain.Content.Entities;
+using AiFashionStudio.Platform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -12,9 +13,10 @@ public class AboutUsContentConfiguration : IEntityTypeConfiguration<AboutUsConte
     /// <param name="builder">The entity type builder used to configure the mapping.</param>
     public void Configure(EntityTypeBuilder<AboutUsContent> builder)
     {
-        builder.ToTable("about_us_contents");
+        builder.ToTable("about_us_contents", DatabaseSchemas.Content);
         builder.HasKey(section => section.Id);
 
+        builder.Property(section => section.Id).HasColumnName("id");
         builder.Property(section => section.SectionKey).HasColumnName("section_key").HasMaxLength(100).IsRequired();
         builder.Property(section => section.Title).HasColumnName("title").HasMaxLength(255).IsRequired();
         builder.Property(section => section.Content).HasColumnName("content").IsRequired();

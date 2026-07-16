@@ -1,3 +1,4 @@
+using AiFashionStudio.Platform.Domain.AiChat.Entities;
 using AiFashionStudio.Platform.Domain.Content.Entities;
 using AiFashionStudio.Platform.Domain.Feedback.Entities;
 using AiFashionStudio.Platform.Domain.Identity.Entities;
@@ -13,6 +14,14 @@ public class AppDbContext : DbContext
         : base(options)
     {
     }
+
+    public DbSet<AiChatConversation> AiChatConversations => Set<AiChatConversation>();
+
+    public DbSet<AiChatMessage> AiChatMessages => Set<AiChatMessage>();
+
+    public DbSet<AiChatToolRun> AiChatToolRuns => Set<AiChatToolRun>();
+
+    public DbSet<AiChatSupportTicket> AiChatSupportTickets => Set<AiChatSupportTicket>();
 
     public DbSet<User> Users => Set<User>();
 
@@ -34,7 +43,6 @@ public class AppDbContext : DbContext
     /// Applies entity configurations for the context.
     /// </summary>
     /// <param name="modelBuilder">The builder used to configure the model.</param>
-
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -9,6 +9,13 @@ namespace AiFashionStudio.Platform.Domain.Payment.Entities;
 public class PaymentOrder : UpdatableEntity
 {
     public Guid UserId { get; private set; }
+
+    /// <summary>
+    /// ID đơn hàng bên Java Order Service (nullable để tương thích payment cũ).
+    /// Dùng trong event PaymentSucceeded để Java correlate và cập nhật order.
+    /// </summary>
+    public Guid? OrderId { get; private set; }
+
     public long OrderCode { get; private set; }
     public int Amount { get; private set; }
     public string Description { get; private set; } = string.Empty;
@@ -28,11 +35,12 @@ public class PaymentOrder : UpdatableEntity
     /// <param name="amount">The payment amount.</param>
     /// <param name="description">The order description.</param>
     /// <returns>The created payment order.</returns>
-    public static PaymentOrder Create(Guid UserId, long OrderCode, int amount, string description)
+    public static PaymentOrder Create(Guid UserId, long OrderCode, int amount, string description, Guid? orderId = null)
     {
-        return new() 
-        { 
+        return new()
+        {
             UserId = UserId,
+            OrderId = orderId,
             OrderCode = OrderCode,
             Amount = amount,
             Description = description

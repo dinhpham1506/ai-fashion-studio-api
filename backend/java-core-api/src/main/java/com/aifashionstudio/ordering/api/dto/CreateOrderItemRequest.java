@@ -12,7 +12,6 @@ public record CreateOrderItemRequest(
         @NotNull
         UUID productVariantId,
 
-        @NotNull
         UUID designId,
 
         @Min(1)

@@ -1,6 +1,7 @@
 using AiFashionStudio.Platform.Domain.Identity.Entities;
 using AiFashionStudio.Platform.Domain.Payment;
 using AiFashionStudio.Platform.Domain.Payment.Entities;
+using AiFashionStudio.Platform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -14,10 +15,12 @@ public class PaymentOrderConfiguration : IEntityTypeConfiguration<PaymentOrder>
     /// <param name="builder">The entity type builder used to configure the PaymentOrder model.</param>
     public void Configure(EntityTypeBuilder<PaymentOrder> builder)
     {
-        builder.ToTable("payment_orders");
+        builder.ToTable("payment_orders", DatabaseSchemas.Payment);
         builder.HasKey(order => order.Id);
 
+        builder.Property(order => order.Id).HasColumnName("id");
         builder.Property(order => order.UserId).HasColumnName("user_id");
+        builder.Property(order => order.OrderId).HasColumnName("order_id");
         builder.Property(order => order.OrderCode).HasColumnName("order_code");
         builder.Property(order => order.Amount).HasColumnName("amount");
         builder.Property(order => order.Description).HasColumnName("description").HasMaxLength(256).IsRequired();
@@ -31,6 +34,7 @@ public class PaymentOrderConfiguration : IEntityTypeConfiguration<PaymentOrder>
 
         builder.HasIndex(order => order.OrderCode).IsUnique();
         builder.HasIndex(order => order.UserId);
+        builder.HasIndex(order => order.OrderId);
 
         builder.HasOne<User>()
             .WithMany()

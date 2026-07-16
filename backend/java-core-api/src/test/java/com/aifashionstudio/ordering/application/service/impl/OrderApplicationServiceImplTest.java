@@ -90,6 +90,52 @@ class OrderApplicationServiceImplTest {
     }
 
     @Test
+    void createOrderAllowsReadyMadeProductWithoutDesign() {
+        UUID customerId = UUID.randomUUID();
+        Catalog product = catalog(UUID.randomUUID(), CatalogStatus.ACTIVE, new BigDecimal("150000"));
+        ProductVariant variant = variant(UUID.randomUUID(), product, ProductVariantStatus.ACTIVE, new BigDecimal("30000"));
+        ProductInventory inventory = inventory(variant, 5);
+        catalogRepository.catalog = product;
+        variantRepository.variant = variant;
+        inventoryRepository.inventory = inventory;
+
+        var result = service.createOrder(command(customerId, product.getId(), variant.getId(), null, 2));
+
+        assertThat(result.paymentStatus()).isEqualTo(PaymentStatus.PENDING);
+        assertThat(orderRepository.order.getItems()).hasSize(1);
+        assertThat(orderRepository.order.getItems().get(0).getDesignId()).isNull();
+        assertThat(inventoryRepository.inventory.getReservedQuantity()).isEqualTo(2);
+    }
+
+    @Test
+    void handlePaymentSucceededSkipsDesignLockForReadyMadeProduct() {
+        UUID customerId = UUID.randomUUID();
+        Catalog product = catalog(UUID.randomUUID(), CatalogStatus.ACTIVE, new BigDecimal("150000"));
+        ProductVariant variant = variant(UUID.randomUUID(), product, ProductVariantStatus.ACTIVE, new BigDecimal("30000"));
+        ProductInventory inventory = inventory(variant, 5);
+        catalogRepository.catalog = product;
+        variantRepository.variant = variant;
+        inventoryRepository.inventory = inventory;
+
+        var created = service.createOrder(command(customerId, product.getId(), variant.getId(), null, 2));
+
+        service.handlePaymentSucceeded(new PaymentSucceededCommand(
+                UUID.randomUUID(),
+                created.orderId(),
+                customerId,
+                created.totalAmount(),
+                "PAYOS",
+                "FT123",
+                OffsetDateTime.now(),
+                "INV001",
+                "https://cdn.example.com/invoice.pdf"
+        ));
+
+        assertThat(orderRepository.order.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(inventoryRepository.inventory.getSoldQuantity()).isEqualTo(2);
+    }
+
+    @Test
     void createOrderRejectsUnsavedDesign() {
         UUID customerId = UUID.randomUUID();
         Catalog product = catalog(UUID.randomUUID(), CatalogStatus.ACTIVE, new BigDecimal("150000"));

@@ -44,7 +44,7 @@ public class OrderItemJpaEntity {
     @Column(name = "product_variant_id", nullable = false)
     private UUID productVariantId;
 
-    @Column(name = "design_id", nullable = false)
+    @Column(name = "design_id")
     private UUID designId;
 
     @Column(name = "product_name_snapshot", nullable = false, length = 255)

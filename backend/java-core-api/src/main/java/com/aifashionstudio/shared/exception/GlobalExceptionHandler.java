@@ -68,6 +68,19 @@ public class GlobalExceptionHandler  {
                 ));
     }
 
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<ApiResponse> handleServiceUnavailable(ServiceUnavailableException ex) {
+        // SERVICE_UNAVAILABLE là trạng thái HTTP 503, dùng khi một dịch vụ phụ thuộc
+        // (AI image generation, object storage...) tạm thời không phản hồi được
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(
+                        ex.getMessage(),
+                        List.of(new ApiError(null, ex.getCode(),
+                                ex.getMessage()))
+                ));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse> handleValidation(MethodArgumentNotValidException ex) {
         List<ApiError> errors = ex.getBindingResult()

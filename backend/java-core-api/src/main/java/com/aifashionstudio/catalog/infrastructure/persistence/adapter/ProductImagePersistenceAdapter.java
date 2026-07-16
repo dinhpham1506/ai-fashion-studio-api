@@ -39,6 +39,14 @@ public class ProductImagePersistenceAdapter implements ProductImageRepository {
     }
 
     @Override
+    public List<ProductImage> findByProductIdInOrderByProductIdAscThumbnailDescSortOrderAsc(List<UUID> productIds) {
+        return jpaProductImageRepository.findByProductIdInOrderByProductIdAscThumbnailDescSortOrderAsc(productIds)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public Optional<ProductImage> findByProductIdAndThumbnailTrue(UUID productId) {
         return jpaProductImageRepository.findByProductIdAndThumbnailTrue(productId)
                 .map(mapper::toDomain);
