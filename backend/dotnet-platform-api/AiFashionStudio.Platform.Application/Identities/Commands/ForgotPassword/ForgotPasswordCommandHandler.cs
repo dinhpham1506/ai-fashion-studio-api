@@ -1,4 +1,5 @@
-﻿using AiFashionStudio.Platform.Application.Common.Exceptions;
+﻿using AiFashionStudio.Platform.Application.Common.Emails;
+using AiFashionStudio.Platform.Application.Common.Exceptions;
 using AiFashionStudio.Platform.Application.Common.Interfaces.IRepositories;
 using AiFashionStudio.Platform.Application.Common.Interfaces.IServices;
 using AiFashionStudio.Platform.Domain.Identity.Entities;
@@ -52,11 +53,17 @@ namespace AiFashionStudio.Platform.Application.Identities.Commands.ForgotPasswor
             
             var otp = _otpGenerator.GenerateOtp();
 
-            var record = PasswordResetByOtp.Create(user.Id, _otpGenerator.Hash(otp), TimeSpan.FromMinutes(5));
-            
+            var otpLifetime = TimeSpan.FromMinutes(5);
+
+            var record = PasswordResetByOtp.Create(user.Id, _otpGenerator.Hash(otp), otpLifetime);
+
             await _passwordResetByOtpRepository.AddAsync(record, cancellationToken);
 
-            await _emailService.SendEmailAsync(user.Email, "Password Reset OTP", $"Your OTP for password reset is: {otp}", cancellationToken);
+            await _emailService.SendEmailAsync(
+                user.Email,
+                "Your password reset code — Fitwear Studio",
+                EmailTemplates.PasswordResetOtp(otp, (int)otpLifetime.TotalMinutes),
+                cancellationToken);
         }
     }
 }

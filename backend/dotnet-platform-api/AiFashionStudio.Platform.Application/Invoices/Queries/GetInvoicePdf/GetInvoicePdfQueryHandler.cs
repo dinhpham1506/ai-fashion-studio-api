@@ -46,6 +46,11 @@ namespace AiFashionStudio.Platform.Application.Invoices.Queries.GetInvoicePdf
                 throw new NotFoundException("INVOICE_PDF_NOT_READY", "Invoice PDF is not ready yet");
             }
 
+            if (Uri.TryCreate(invoice.PdfUrl, UriKind.Absolute, out _))
+            {
+                return new InvoicePdfResponse(invoice.InvoiceNumber, invoice.PdfUrl);
+            }
+
             var pdfUrl = await _fileStorage.GetTemporaryUrlAsync(
                 bucket: "invoices",
                 objectName: invoice.PdfUrl,

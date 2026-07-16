@@ -1,5 +1,6 @@
 using AiFashionStudio.Platform.Domain.Feedback.Entities;
 using AiFashionStudio.Platform.Domain.Feedback.Enums;
+using AiFashionStudio.Platform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -9,9 +10,10 @@ public class FeedbackConfiguration : IEntityTypeConfiguration<Feedback>
 {
     public void Configure(EntityTypeBuilder<Feedback> builder)
     {
-        builder.ToTable("feedbacks");
+        builder.ToTable("feedbacks", DatabaseSchemas.Feedback);
         builder.HasKey(feedback => feedback.Id);
 
+        builder.Property(feedback => feedback.Id).HasColumnName("id");
         builder.Property(feedback => feedback.CustomerId).HasColumnName("customer_id").IsRequired();
         builder.Property(feedback => feedback.OrderId).HasColumnName("order_id").IsRequired();
         builder.Property(feedback => feedback.ProductId).HasColumnName("product_id").IsRequired();

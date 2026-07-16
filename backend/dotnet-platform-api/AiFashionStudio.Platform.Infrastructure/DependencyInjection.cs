@@ -23,7 +23,8 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("Default")));
+            options.UseNpgsql(configuration.GetConnectionString("Default"),
+                npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DatabaseSchemas.Platform)));
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
         services.Configure<SmtpSettings>(configuration.GetSection(SmtpSettings.SectionName));
@@ -31,6 +32,7 @@ public static class DependencyInjection
         services.Configure<MinioSettings>(configuration.GetSection(MinioSettings.SectionName));
         services.Configure<JavaCoreApiSettings>(configuration.GetSection(JavaCoreApiSettings.SectionName));
         services.Configure<KafkaSettings>(configuration.GetSection(KafkaSettings.SectionName));
+        services.Configure<GeminiSettings>(configuration.GetSection(GeminiSettings.SectionName));
 
         // Staff Gateway gọi sang java-core-api qua typed HttpClient
         var javaCoreApiSettings = configuration.GetSection(JavaCoreApiSettings.SectionName).Get<JavaCoreApiSettings>()
@@ -42,6 +44,15 @@ public static class DependencyInjection
                 client.BaseAddress = new Uri(javaCoreApiSettings.BaseUrl.TrimEnd('/') + "/");
             }
             client.Timeout = TimeSpan.FromSeconds(javaCoreApiSettings.TimeoutSeconds);
+        });
+
+        // AI Chat gọi Gemini (LLM free tier) để sinh câu trả lời tự nhiên
+        var geminiSettings = configuration.GetSection(GeminiSettings.SectionName).Get<GeminiSettings>()
+            ?? new GeminiSettings();
+        services.AddHttpClient<IGeminiChatClient, GeminiChatClient>(client =>
+        {
+            client.BaseAddress = new Uri(geminiSettings.BaseUrl.TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(geminiSettings.TimeoutSeconds);
         });
 
         // Entity chưa có repository riêng vẫn inject được IBaseRepository<TEntity>

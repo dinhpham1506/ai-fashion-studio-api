@@ -22,11 +22,237 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("AiFashionStudio.Platform.Domain.AiChat.Entities.AiChatConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("PageType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("page_type");
+
+                    b.Property<Guid?>("RelatedOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("related_order_id");
+
+                    b.Property<Guid?>("RelatedProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("related_product_id");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("UserRole")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("user_role");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RelatedOrderId");
+
+                    b.HasIndex("RelatedProductId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("conversations", "ai_chat");
+                });
+
+            modelBuilder.Entity("AiFashionStudio.Platform.Domain.AiChat.Entities.AiChatMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Intent")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("intent");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("metadata_json");
+
+                    b.Property<string>("SenderType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("sender_type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
+
+                    b.HasIndex("Intent");
+
+                    b.ToTable("messages", "ai_chat");
+                });
+
+            modelBuilder.Entity("AiFashionStudio.Platform.Domain.AiChat.Entities.AiChatSupportTicket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AssignedTo")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_to");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("IssueType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("issue_type");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("severity");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("summary");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("support_tickets", "ai_chat");
+                });
+
+            modelBuilder.Entity("AiFashionStudio.Platform.Domain.AiChat.Entities.AiChatToolRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text")
+                        .HasColumnName("error_message");
+
+                    b.Property<string>("InputJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("input_json");
+
+                    b.Property<string>("OutputSummaryJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("output_summary_json");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("ToolName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("tool_name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
+
+                    b.HasIndex("ToolName");
+
+                    b.ToTable("tool_runs", "ai_chat");
+                });
+
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Content.Entities.AboutUsContent", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<string>("Content")
                         .IsRequired()
@@ -72,14 +298,15 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
                     b.HasIndex("SectionKey")
                         .IsUnique();
 
-                    b.ToTable("about_us_contents", (string)null);
+                    b.ToTable("about_us_contents", "content");
                 });
 
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Feedback.Entities.Feedback", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<string>("Comment")
                         .HasColumnType("text")
@@ -134,14 +361,15 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
                     b.HasIndex("CustomerId", "OrderId", "ProductId")
                         .IsUnique();
 
-                    b.ToTable("feedbacks", (string)null);
+                    b.ToTable("feedbacks", "feedback");
                 });
 
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Identity.Entities.PasswordResetByOtp", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -184,14 +412,15 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("password_reset_otps", (string)null);
+                    b.ToTable("password_reset_otps", "identity");
                 });
 
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Identity.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -221,14 +450,15 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("refresh_tokens", (string)null);
+                    b.ToTable("refresh_tokens", "identity");
                 });
 
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Identity.Entities.Role", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -255,14 +485,15 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("roles", (string)null);
+                    b.ToTable("roles", "identity");
                 });
 
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Identity.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<string>("AvatarUrl")
                         .HasColumnType("text")
@@ -309,14 +540,15 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("users", (string)null);
+                    b.ToTable("users", "identity");
                 });
 
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Identity.Entities.UserRole", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -337,14 +569,15 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "RoleId")
                         .IsUnique();
 
-                    b.ToTable("user_roles", (string)null);
+                    b.ToTable("user_roles", "identity");
                 });
 
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Invoice.Entities.Invoice", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -403,14 +636,15 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PaymentId");
 
-                    b.ToTable("invoices", (string)null);
+                    b.ToTable("invoices", "payment");
                 });
 
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Invoice.Entities.InvoiceItem", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -441,14 +675,15 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("InvoiceId");
 
-                    b.ToTable("invoice_items", (string)null);
+                    b.ToTable("invoice_items", "payment");
                 });
 
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Payment.Entities.PaymentOrder", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<int>("Amount")
                         .HasColumnType("integer")
@@ -511,7 +746,34 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("payment_orders", (string)null);
+                    b.ToTable("payment_orders", "payment");
+                });
+
+            modelBuilder.Entity("AiFashionStudio.Platform.Domain.AiChat.Entities.AiChatMessage", b =>
+                {
+                    b.HasOne("AiFashionStudio.Platform.Domain.AiChat.Entities.AiChatConversation", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AiFashionStudio.Platform.Domain.AiChat.Entities.AiChatSupportTicket", b =>
+                {
+                    b.HasOne("AiFashionStudio.Platform.Domain.AiChat.Entities.AiChatConversation", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AiFashionStudio.Platform.Domain.AiChat.Entities.AiChatToolRun", b =>
+                {
+                    b.HasOne("AiFashionStudio.Platform.Domain.AiChat.Entities.AiChatConversation", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("AiFashionStudio.Platform.Domain.Identity.Entities.PasswordResetByOtp", b =>

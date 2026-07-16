@@ -30,6 +30,37 @@ public class JavaCoreApiClient : IJavaCoreApiClient
         _logger = logger;
     }
 
+    public async Task<IReadOnlyList<CatalogProductResponse>> SearchPublicProductsAsync(
+        string? name, CancellationToken cancellationToken)
+    {
+        var query = string.IsNullOrWhiteSpace(name)
+            ? string.Empty
+            : $"?name={Uri.EscapeDataString(name)}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/products{query}");
+        return await SendDirectAsync<IReadOnlyList<CatalogProductResponse>>(request, cancellationToken);
+    }
+
+    public async Task<ProductDetailResponse> GetPublicProductDetailAsync(
+        Guid productId, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/products/{productId}");
+        return await SendDirectAsync<ProductDetailResponse>(request, cancellationToken);
+    }
+
+    public async Task<OrderDetailResponse> GetOrderDetailAsync(
+        Guid orderId, Guid requesterId, string? userRole, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/orders/{orderId}");
+        request.Headers.TryAddWithoutValidation("X-User-Id", requesterId.ToString());
+        if (!string.IsNullOrWhiteSpace(userRole))
+        {
+            request.Headers.TryAddWithoutValidation("X-User-Role", userRole);
+        }
+
+        return await SendDirectAsync<OrderDetailResponse>(request, cancellationToken);
+    }
+
     public async Task<StaffOrderListResponse> GetStaffOrdersAsync(
         string? status, int page, int pageSize, CancellationToken cancellationToken)
     {
@@ -57,6 +88,69 @@ public class JavaCoreApiClient : IJavaCoreApiClient
             Content = JsonContent.Create(new { toStatus, note, changedBy }, options: JsonOptions)
         };
         return await SendAsync<UpdateOrderStatusResponse>(request, cancellationToken);
+    }
+
+    private async Task<T> SendDirectAsync<T>(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient.SendAsync(request, cancellationToken);
+        }
+        catch (Exception exception) when (exception is HttpRequestException
+            || (exception is TaskCanceledException && !cancellationToken.IsCancellationRequested))
+        {
+            _logger.LogError(exception, "Java Core API unreachable: {Url}", request.RequestUri);
+            throw new ServiceUnavailableException(
+                "JAVA_CORE_SERVICE_UNAVAILABLE", "Java Core service is temporarily unavailable");
+        }
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var (code, message) = ExtractError(body);
+
+            switch (response.StatusCode)
+            {
+                case HttpStatusCode.NotFound:
+                    throw new NotFoundException(code ?? "JAVA_RESOURCE_NOT_FOUND", message ?? "Resource not found");
+                case HttpStatusCode.Forbidden:
+                    throw new ForbiddenException(code ?? "JAVA_RESOURCE_FORBIDDEN", message ?? "You cannot access this resource");
+                case HttpStatusCode.BadRequest:
+                case HttpStatusCode.UnprocessableEntity:
+                    throw new AppValidationException(
+                        "request", code ?? "JAVA_BUSINESS_RULE_FAILED", message ?? "Java Core business rule failed");
+                default:
+                    _logger.LogError(
+                        "Java Core API returned {StatusCode} for {Url}: {Body}",
+                        (int)response.StatusCode, request.RequestUri, body);
+                    throw new BadGatewayException(
+                        "JAVA_CORE_SERVICE_ERROR", "Java Core service returned an unexpected error");
+            }
+        }
+
+        try
+        {
+            var result = JsonSerializer.Deserialize<T>(body, JsonOptions);
+            if (result is not null)
+            {
+                return result;
+            }
+        }
+        catch (JsonException)
+        {
+            // Some Java endpoints may later move to the shared envelope format.
+            var envelope = JsonSerializer.Deserialize<JavaApiEnvelope<T>>(body, JsonOptions);
+            if (envelope?.Success == true && envelope.Data is not null)
+            {
+                return envelope.Data;
+            }
+        }
+
+        _logger.LogError("Cannot parse Java Core API response from {Url}: {Body}", request.RequestUri, body);
+        throw new BadGatewayException(
+            "JAVA_CORE_INVALID_RESPONSE", "Java Core service returned an invalid response");
     }
 
     private async Task<T> SendAsync<T>(HttpRequestMessage request, CancellationToken cancellationToken)

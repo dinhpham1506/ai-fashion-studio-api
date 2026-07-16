@@ -67,6 +67,13 @@ namespace AiFashionStudio.Platform.Infrastructure.Persistence.Repositories
             return order;
         }
 
+        public async Task<PaymentOrder?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
+        {
+            var order = await _appDbContext.PaymentOrders.FirstOrDefaultAsync(o => o.OrderId == orderId, cancellationToken);
+
+            return order;
+        }
+
         /// <summary>
         /// Gets the payment order with the specified order code.
         /// </summary>

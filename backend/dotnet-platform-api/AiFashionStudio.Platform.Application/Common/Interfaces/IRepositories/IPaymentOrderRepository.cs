@@ -35,6 +35,8 @@ Task<PaymentOrder?> GetByOrderCodeAsync(long orderCode, CancellationToken cancel
 /// <returns>The matching payment order, or <c>null</c> if no payment exists for the specified order and user.</returns>
         Task<PaymentOrder?> GetByOrderIdAndUserIdAsync(Guid orderId, Guid userId, CancellationToken cancellationToken = default);
 
+        Task<PaymentOrder?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default);
+
         /// <summary>
 /// Retrieves a payment order by order code and user.
 /// </summary>

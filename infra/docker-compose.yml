@@ -128,8 +128,13 @@ services:
     command: >
       "
       until mc alias set local http://minio:9000 $$MC_USER $$MC_PASS; do echo 'waiting for minio'; sleep 2; done;
-      mc mb -p local/products local/designs local/prints local/tryon local/invoices;
+      mc mb -p local/products local/designs local/prints local/tryon local/invoices local/avatars local/feedbacks;
       mc anonymous set download local/products;
+      mc anonymous set download local/avatars;
+      mc anonymous set download local/feedbacks;
+      mc anonymous set download local/designs;
+      mc anonymous set download local/prints;
+      mc anonymous set download local/tryon;
       echo 'minio buckets ready';
       "
     restart: "no"

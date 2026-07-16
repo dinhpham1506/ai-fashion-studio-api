@@ -8,8 +8,10 @@ import com.aifashionstudio.catalog.domain.exception.CatalogNameAlreadyExistsExce
 import com.aifashionstudio.catalog.domain.exception.InvalidCatalogStatusTransitionException;
 import com.aifashionstudio.catalog.domain.model.Catalog;
 import com.aifashionstudio.catalog.domain.model.CatalogStatus;
+import com.aifashionstudio.catalog.domain.model.ProductImage;
 import com.aifashionstudio.catalog.domain.model.ProductVariant;
 import com.aifashionstudio.catalog.domain.repository.CatalogRepository;
+import com.aifashionstudio.catalog.domain.repository.ProductImageRepository;
 import com.aifashionstudio.catalog.domain.service.CatalogDomainService;
 import com.aifashionstudio.shared.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,13 +30,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class CatalogApplicationServiceImplTest {
 
     private FakeCatalogRepository catalogRepository;
+    private FakeProductImageRepository productImageRepository;
     private CatalogApplicationServiceImpl service;
 
     @BeforeEach
     void setUp() {
         catalogRepository = new FakeCatalogRepository();
+        productImageRepository = new FakeProductImageRepository();
         service = new CatalogApplicationServiceImpl(
                 catalogRepository,
+                productImageRepository,
                 new NoOpCatalogDomainService(),
                 new CatalogApplicationMapper()
         );
@@ -107,11 +112,13 @@ class CatalogApplicationServiceImplTest {
     void getPublicProductsReturnsActiveProductsWithNameFilter() {
         Catalog activeCatalog = catalog(UUID.randomUUID(), "White Tee", "Description", "100000", CatalogStatus.ACTIVE);
         catalogRepository.statusAndNameResults = List.of(activeCatalog);
+        productImageRepository.images = List.of(productImage(activeCatalog, "https://cdn.test/white-tee.jpg", true, 0));
 
         List<CatalogResult> result = service.getPublicProducts(" tee ");
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).name()).isEqualTo("White Tee");
+        assertThat(result.get(0).thumbnailUrl()).isEqualTo("https://cdn.test/white-tee.jpg");
         assertThat(catalogRepository.lastStatusFilter).isEqualTo(CatalogStatus.ACTIVE);
         assertThat(catalogRepository.lastNameFilter).isEqualTo("tee");
     }
@@ -134,6 +141,17 @@ class CatalogApplicationServiceImplTest {
                 status,
                 UUID.randomUUID(),
                 OffsetDateTime.now(),
+                OffsetDateTime.now()
+        );
+    }
+
+    private ProductImage productImage(Catalog product, String imageUrl, boolean thumbnail, int sortOrder) {
+        return ProductImage.reconstitute(
+                UUID.randomUUID(),
+                product,
+                imageUrl,
+                thumbnail,
+                sortOrder,
                 OffsetDateTime.now()
         );
     }
@@ -195,6 +213,68 @@ class CatalogApplicationServiceImplTest {
         @Override
         public boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id) {
             return duplicateName;
+        }
+    }
+
+    private static class FakeProductImageRepository implements ProductImageRepository {
+        private List<ProductImage> images = new ArrayList<>();
+
+        @Override
+        public ProductImage save(ProductImage productImage) {
+            images.add(productImage);
+            return productImage;
+        }
+
+        @Override
+        public Optional<ProductImage> findById(UUID id) {
+            return images.stream()
+                    .filter(image -> image.getId().equals(id))
+                    .findFirst();
+        }
+
+        @Override
+        public List<ProductImage> findByProductIdOrderBySortOrderAsc(UUID productId) {
+            return images.stream()
+                    .filter(image -> image.getProduct().getId().equals(productId))
+                    .sorted((left, right) -> Integer.compare(left.getSortOrder(), right.getSortOrder()))
+                    .toList();
+        }
+
+        @Override
+        public List<ProductImage> findByProductIdInOrderByProductIdAscThumbnailDescSortOrderAsc(List<UUID> productIds) {
+            return images.stream()
+                    .filter(image -> productIds.contains(image.getProduct().getId()))
+                    .sorted((left, right) -> {
+                        int productCompare = left.getProduct().getId().compareTo(right.getProduct().getId());
+                        if (productCompare != 0) {
+                            return productCompare;
+                        }
+
+                        int thumbnailCompare = Boolean.compare(right.isThumbnail(), left.isThumbnail());
+                        if (thumbnailCompare != 0) {
+                            return thumbnailCompare;
+                        }
+
+                        return Integer.compare(left.getSortOrder(), right.getSortOrder());
+                    })
+                    .toList();
+        }
+
+        @Override
+        public Optional<ProductImage> findByProductIdAndThumbnailTrue(UUID productId) {
+            return images.stream()
+                    .filter(image -> image.getProduct().getId().equals(productId) && image.isThumbnail())
+                    .findFirst();
+        }
+
+        @Override
+        public void deleteByProductId(UUID productId) {
+            images.removeIf(image -> image.getProduct().getId().equals(productId));
+        }
+
+        @Override
+        public void delete(ProductImage productImage) {
+            images.removeIf(image -> image.getId().equals(productImage.getId()));
         }
     }
 

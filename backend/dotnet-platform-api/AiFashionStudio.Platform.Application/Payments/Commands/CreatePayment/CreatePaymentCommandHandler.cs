@@ -46,7 +46,7 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.CreatePayment
             await _paymentOrderRepository.AddAsync(order, cancellationToken);
 
             var link = await _gatewayService.CreatePaymentLinkAsync(
-                new PaymentLinkRequest(orderCode, command.Amount, command.Description, ReturnUrl: "", CancelUrl: ""),
+                new PaymentLinkRequest(orderCode, command.Amount, BuildPayOsDescription(orderCode), ReturnUrl: "", CancelUrl: ""),
                 cancellationToken);
 
             order.AttachPaymentLink(link.PaymentLink);
@@ -55,6 +55,14 @@ namespace AiFashionStudio.Platform.Application.Payments.Commands.CreatePayment
             return new CreatePaymentLinkResponse(orderCode, link.CheckOutUrl, link.QrCode, command.Amount, order.Status.ToString().ToUpperInvariant());
 
 
+        }
+
+        private static string BuildPayOsDescription(long orderCode)
+        {
+            var orderCodeText = orderCode.ToString();
+            var suffix = orderCodeText.Length <= 18 ? orderCodeText : orderCodeText[^18..];
+
+            return $"AFS {suffix}";
         }
     }
 }

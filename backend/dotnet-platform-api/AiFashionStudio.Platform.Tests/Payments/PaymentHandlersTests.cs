@@ -117,6 +117,9 @@ public class PaymentHandlersTests
         public Task<PaymentOrder?> GetByOrderIdAndUserIdAsync(Guid orderId, Guid userId, CancellationToken cancellationToken = default)
             => Task.FromResult(Store.FirstOrDefault(order => order.OrderId == orderId && order.UserId == userId));
 
+        public Task<PaymentOrder?> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default)
+            => Task.FromResult(Store.FirstOrDefault(order => order.OrderId == orderId));
+
         public Task<PaymentOrder?> GetByOrderCodeAndUserIdAsync(long orderCode, Guid userId, CancellationToken cancellationToken = default)
             => Task.FromResult(Store.FirstOrDefault(order => order.OrderCode == orderCode && order.UserId == userId));
     }
