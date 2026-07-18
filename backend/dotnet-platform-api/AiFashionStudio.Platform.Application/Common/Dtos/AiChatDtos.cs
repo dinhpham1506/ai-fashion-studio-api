@@ -4,7 +4,8 @@ public record AiChatPageContext(
     string? Type,
     string? Url,
     Guid? ProductId,
-    Guid? OrderId);
+    Guid? OrderId,
+    string? Language = null);
 
 public record AiChatClientContext(
     IReadOnlyDictionary<string, string?>? CurrentFilters,
@@ -16,7 +17,8 @@ public record AiChatClientContext(
     int? Quantity = null,
     string? ReceiverName = null,
     string? ReceiverPhone = null,
-    string? ShippingAddress = null);
+    string? ShippingAddress = null,
+    string? Language = null);
 
 public record AiChatProductCard(
     string Type,
@@ -33,6 +35,14 @@ public record AiChatSizeRecommendation(
     double Confidence,
     string Reason);
 
+public record AiChatAction(
+    string Label,
+    string Kind,
+    string? NavigateUrl = null,
+    string? ApiRoute = null,
+    string? Method = null,
+    IReadOnlyDictionary<string, string?>? Parameters = null);
+
 public record AiChatResponse(
     Guid ConversationId,
     string Reply,
@@ -40,7 +50,10 @@ public record AiChatResponse(
     IReadOnlyCollection<AiChatProductCard> Cards,
     IReadOnlyCollection<string> SuggestedReplies,
     AiChatSizeRecommendation? Recommendation = null,
-    AiChatSupportTicketResponse? SupportTicket = null);
+    AiChatSupportTicketResponse? SupportTicket = null)
+{
+    public IReadOnlyCollection<AiChatAction> Actions { get; init; } = Array.Empty<AiChatAction>();
+}
 
 public record AiChatSupportTicketResponse(
     Guid Id,

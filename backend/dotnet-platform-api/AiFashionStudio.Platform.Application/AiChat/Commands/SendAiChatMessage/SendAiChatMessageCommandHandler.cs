@@ -87,10 +87,12 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
             "SIZE_ADVICE" => await HandleSizeAdviceAsync(conversation.Id, request, cancellationToken),
             "ORDER_STATUS_HELP" => await HandleOrderHelpAsync(conversation.Id, request, cancellationToken),
             "PRODUCT_DETAIL_HELP" => await HandleProductDetailHelpAsync(conversation.Id, request, cancellationToken),
-            "PRODUCT_SEARCH" => await HandleProductSearchAsync(conversation.Id, request, cancellationToken),
+            "PRODUCT_SEARCH" => await HandleProductSearchAsync(conversation.Id, request, verifiedMemory, cancellationToken),
             _ => BuildFallbackResponse(conversation.Id, request)
         };
 
+        response = LocalizeTemplateResponse(response, request, verifiedMemory);
+        response = response with { Actions = BuildBehaviorActions(response, request, verifiedMemory) };
         response = await RefineReplyWithLlmAsync(response, request, verifiedMemory, intentProfile, cancellationToken);
         response = AiChatPolicyGuard.Apply(response);
 
@@ -104,6 +106,7 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
                 {
                     response.Cards,
                     response.SuggestedReplies,
+                    response.Actions,
                     response.Recommendation,
                     response.SupportTicket,
                     intentProfile,
@@ -150,16 +153,22 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
             intentProfile,
             verifiedMemory,
             recentTurns,
+            targetLanguage = verifiedMemory.Language,
             cards = response.Cards,
+            actions = response.Actions,
             recommendation = response.Recommendation,
             supportTicketCreated = response.SupportTicket is not null
         });
 
-        var userPrompt = $"Tin nhắn mới nhất của khách: \"{request.Message}\"\n\n" +
+        var userPrompt = $"Target reply language: {verifiedMemory.Language}. Match this language exactly; do not mix languages unless product names require it.\n\n" +
+            $"Tin nhắn mới nhất của khách: \"{request.Message}\"\n\n" +
             $"Dữ liệu đã được hệ thống kiểm tra sẵn (JSON, chỉ được dùng đúng dữ liệu này):\n{groundedFacts}";
 
+        var systemInstruction = ReplyRefinementSystemInstruction +
+            $" Reply only in {verifiedMemory.Language}; if targetLanguage is EN, use natural English sales/support tone, and if targetLanguage is VI, use natural Vietnamese.";
+
         var refinedReply = await _geminiChatClient.GenerateReplyAsync(
-            ReplyRefinementSystemInstruction, userPrompt, cancellationToken);
+            systemInstruction, userPrompt, cancellationToken);
 
         return string.IsNullOrWhiteSpace(refinedReply) ? response : response with { Reply = refinedReply };
     }
@@ -167,19 +176,16 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
     private async Task<AiChatResponse> HandleProductSearchAsync(
         Guid conversationId,
         SendAiChatMessageCommand request,
+        VerifiedConversationMemory verifiedMemory,
         CancellationToken cancellationToken)
     {
         var search = BuildProductSearch(request.Message);
-        var toolInput = SerializeOrNull(search);
+        var toolInput = SerializeOrNull(new { search, verifiedMemory.FashionMemory });
 
         IReadOnlyList<CatalogProductResponse> products;
         try
         {
-            products = await _javaCoreApiClient.SearchPublicProductsAsync(search.Keyword, cancellationToken);
-            if (products.Count == 0)
-            {
-                products = await _javaCoreApiClient.SearchPublicProductsAsync(null, cancellationToken);
-            }
+            products = await _javaCoreApiClient.SearchPublicProductsAsync(null, cancellationToken);
 
             await _toolRunRepository.AddAsync(
                 AiChatToolRun.Succeeded(
@@ -198,21 +204,91 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
         }
 
         var candidates = await BuildProductCandidatesAsync(products, cancellationToken);
-        var filteredProducts = ApplySimpleFilters(candidates, search)
+        var needProfile = BuildFashionNeedProfile(request.Message, verifiedMemory.FashionMemory, candidates);
+        await _toolRunRepository.AddAsync(
+            AiChatToolRun.Succeeded(
+                conversationId,
+                "BuildFashionNeedProfile",
+                SerializeOrNull(new { request.Message, verifiedMemory.FashionMemory }),
+                SerializeOrNull(needProfile)),
+            cancellationToken);
+
+        if (needProfile.NeedsClarification)
+        {
+            var clarificationCards = RankProductCandidates(candidates, needProfile, search, strict: false)
+                .Where(HasAvailableStock)
+                .Take(3)
+                .ToList();
+
+            return BuildFashionClarificationResponse(conversationId, needProfile, clarificationCards);
+        }
+
+        var filteredProducts = RankProductCandidates(candidates, needProfile, search, strict: true)
+            .Where(HasAvailableStock)
             .Take(5)
             .ToList();
 
         if (filteredProducts.Count == 0)
         {
-            return new AiChatResponse(
-                conversationId,
-                "Em chưa tìm thấy sản phẩm thật sự khớp với yêu cầu này. Anh/chị muốn em thử tìm rộng hơn theo tên sản phẩm hoặc bỏ bớt điều kiện giá/màu không ạ?",
-                "PRODUCT_SEARCH",
-                Array.Empty<AiChatProductCard>(),
-                new[] { "Tìm rộng hơn", "Bỏ điều kiện giá", "Tìm sản phẩm đang có sẵn" });
+            var alternatives = RankProductCandidates(candidates, needProfile, search, strict: false)
+                .Where(HasAvailableStock)
+                .Take(5)
+                .ToList();
+
+            return BuildOutOfStockProductResponse(conversationId, request.Message, alternatives);
         }
 
-        var cards = filteredProducts
+        var cards = BuildProductCards(filteredProducts);
+        var reply = BuildProductSearchReply(cards, needProfile);
+
+        return new AiChatResponse(
+            conversationId,
+            reply,
+            "PRODUCT_SEARCH",
+            cards,
+            needProfile.SuggestedReplies.Count > 0
+                ? needProfile.SuggestedReplies
+                : BuildProductSearchSuggestions(request.Message));
+    }
+
+    private static AiChatResponse BuildFashionClarificationResponse(
+        Guid conversationId,
+        FashionNeedProfile needProfile,
+        IReadOnlyList<ProductCandidate> previewProducts)
+    {
+        var cards = BuildProductCards(previewProducts);
+        var reply = needProfile.ClarificationQuestion
+            ?? "Em đã đọc nhu cầu của anh/chị, nhưng cần thêm một ý nhỏ để tìm đúng sản phẩm còn hàng trong catalog. Anh/chị thích kiểu nào hơn ạ?";
+
+        return new AiChatResponse(
+            conversationId,
+            reply,
+            "PRODUCT_SEARCH",
+            cards,
+            needProfile.SuggestedReplies);
+    }
+
+    private static AiChatResponse BuildOutOfStockProductResponse(
+        Guid conversationId,
+        string message,
+        IReadOnlyList<ProductCandidate> alternatives)
+    {
+        var cards = BuildProductCards(alternatives);
+        var reply = cards.Count == 0
+            ? "Em có kiểm tra catalog nhưng các mẫu khớp nhu cầu này hiện chưa còn size/màu có thể đặt. Anh/chị muốn em đổi sang kiểu áo khác hay nới điều kiện màu/giá để tìm tiếp không ạ?"
+            : $"Em có tìm thấy nhu cầu \"{TrimForReply(message)}\" trong catalog, nhưng mẫu khớp hiện chưa còn size/màu có thể đặt. Em gửi vài mẫu còn hàng gần nhất để anh/chị chọn, rồi em tư vấn size ngay ạ.";
+
+        return new AiChatResponse(
+                conversationId,
+                reply,
+                "PRODUCT_SEARCH",
+                cards,
+                BuildProductSearchSuggestions(message));
+    }
+
+    private static IReadOnlyCollection<AiChatProductCard> BuildProductCards(IEnumerable<ProductCandidate> products)
+    {
+        return products
             .Select(candidate => new AiChatProductCard(
                 "PRODUCT",
                 candidate.Product.Id,
@@ -223,17 +299,26 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
                 candidate.AvailableSizes,
                 candidate.AvailableColors))
             .ToList();
+    }
 
-        var reply = cards.Count == 1
-            ? "Em tìm được 1 sản phẩm rất hợp với yêu cầu của anh/chị, mẫu này đang còn hàng nên anh/chị chốt sớm để không lỡ size mình cần nhé. Anh/chị cho em xin chiều cao cân nặng, em tư vấn size chuẩn để mình đặt luôn ạ."
-            : $"Em tìm được {cards.Count} sản phẩm rất hợp với yêu cầu của anh/chị, toàn mẫu đang có sẵn hàng ạ. Anh/chị ưng mẫu nào em tư vấn size ngay để mình chốt đơn luôn cho kịp còn hàng nhé.";
+    private static string BuildProductSearchReply(
+        IReadOnlyCollection<AiChatProductCard> cards,
+        FashionNeedProfile needProfile)
+    {
+        var needText = BuildNeedSummary(needProfile);
+        return cards.Count == 1
+            ? $"Em tìm được 1 mẫu còn hàng hợp với {needText}. Mẫu này có size/màu đang đặt được, anh/chị cho em xin chiều cao cân nặng để em chốt size chuẩn nhé."
+            : $"Em tìm được {cards.Count} mẫu còn hàng hợp với {needText}. Anh/chị ưng mẫu nào em tư vấn size/màu ngay để mình chốt đúng hàng còn trong kho ạ.";
+    }
 
-        return new AiChatResponse(
-            conversationId,
-            reply,
-            "PRODUCT_SEARCH",
-            cards,
-            new[] { "Tư vấn size giúp tôi", "Mẫu nào đáng mua nhất?", "Tìm mẫu rẻ hơn" });
+    private static IReadOnlyCollection<string> BuildProductSearchSuggestions(string message)
+    {
+        if (IsShirtAdviceQuery(message))
+        {
+            return new[] { "Áo kiểu đi tiệc", "Áo thun đi tiệc", "Sơ mi đi tiệc" };
+        }
+
+        return new[] { "Tư vấn size giúp tôi", "Mẫu nào đáng mua nhất?", "Tìm mẫu rẻ hơn" };
     }
 
     private async Task<AiChatResponse> HandleCartStatusAsync(
@@ -704,6 +789,218 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
                 : new[] { "Tìm sản phẩm", "Tư vấn size", "Hỗ trợ đơn hàng" });
     }
 
+    private static IReadOnlyCollection<AiChatAction> BuildBehaviorActions(
+        AiChatResponse response,
+        SendAiChatMessageCommand request,
+        VerifiedConversationMemory verifiedMemory)
+    {
+        var actions = new List<AiChatAction>();
+        var pageType = verifiedMemory.PageType;
+        var productId = verifiedMemory.ProductId ?? response.Cards.FirstOrDefault()?.ProductId;
+        var orderId = verifiedMemory.OrderId;
+        var english = IsEnglish(verifiedMemory.Language);
+
+        void Add(AiChatAction action)
+        {
+            if (!actions.Any(existing =>
+                    string.Equals(existing.Label, action.Label, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(existing.Kind, action.Kind, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(existing.NavigateUrl, action.NavigateUrl, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(existing.ApiRoute, action.ApiRoute, StringComparison.OrdinalIgnoreCase)))
+            {
+                actions.Add(action);
+            }
+        }
+
+        if (request.UserId is null && response.Intent is "ADD_TO_CART" or "CART_STATUS" or "CART_CHECKOUT" or "ORDER_STATUS_HELP")
+        {
+            Add(Navigate(english ? "Log in" : "Đăng nhập", "/login"));
+        }
+
+        switch (response.Intent)
+        {
+            case "PRODUCT_SEARCH":
+                Add(Navigate(english ? "Browse products" : "Xem danh sách sản phẩm", "/products", "/api/products", "GET"));
+                foreach (var card in response.Cards.Take(3))
+                {
+                    Add(Navigate(english ? $"View {card.Name}" : $"Xem {card.Name}", card.NavigateUrl, $"/api/products/{card.ProductId}", "GET"));
+                }
+                break;
+
+            case "PRODUCT_DETAIL_HELP":
+            case "SIZE_ADVICE":
+                if (productId.HasValue)
+                {
+                    Add(Navigate(english ? "Open current product" : "Mở sản phẩm đang xem", $"/products/{productId}", $"/api/products/{productId}", "GET"));
+                }
+                else
+                {
+                    Add(Navigate(english ? "Find products" : "Tìm sản phẩm", "/products", "/api/products", "GET"));
+                }
+                break;
+
+            case "ADD_TO_CART":
+                Add(new AiChatAction(english ? "Add to cart" : "Thêm vào giỏ", "API_CALL", null, "/api/cart/items", "POST"));
+                Add(Navigate(english ? "Open cart" : "Mở giỏ hàng", "/cart", "/api/cart", "GET"));
+                break;
+
+            case "CART_STATUS":
+                Add(Navigate(english ? "Open cart" : "Mở giỏ hàng", "/cart", "/api/cart", "GET"));
+                Add(Navigate(english ? "Checkout cart" : "Checkout giỏ hàng", "/checkout", "/api/cart/checkout", "POST"));
+                break;
+
+            case "CART_CHECKOUT":
+                Add(Navigate(english ? "Open checkout" : "Mở checkout", "/checkout", "/api/cart/checkout", "POST"));
+                Add(Navigate(english ? "View orders" : "Xem đơn hàng", "/orders", "/api/orders/my", "GET"));
+                break;
+
+            case "CHECKOUT_HELP":
+                Add(Navigate(english ? "Open checkout" : "Mở checkout", "/checkout"));
+                Add(Navigate(english ? "View orders" : "Xem đơn hàng", "/orders", "/api/orders/my", "GET"));
+                break;
+
+            case "ORDER_STATUS_HELP":
+                if (orderId.HasValue)
+                {
+                    Add(Navigate(english ? "Open order details" : "Mở chi tiết đơn hàng", $"/orders/{orderId}", $"/api/orders/{orderId}", "GET"));
+                    Add(new AiChatAction(english ? "Check payment" : "Kiểm tra thanh toán", "API_CALL", null, $"/api/payments/order/{orderId}", "GET"));
+                }
+                else
+                {
+                    Add(Navigate(english ? "Open order list" : "Mở danh sách đơn hàng", "/orders", "/api/orders/my", "GET"));
+                }
+                Add(new AiChatAction(english ? "Create support request" : "Tạo yêu cầu hỗ trợ", "SUPPORT_HANDOFF"));
+                break;
+
+            default:
+                if (pageType == "PRODUCT_DETAIL" && productId.HasValue)
+                {
+                    Add(Navigate(english ? "Open current product" : "Mở sản phẩm đang xem", $"/products/{productId}", $"/api/products/{productId}", "GET"));
+                }
+                Add(Navigate(english ? "Find products" : "Tìm sản phẩm", "/products", "/api/products", "GET"));
+                break;
+        }
+
+        return actions;
+    }
+
+    private static AiChatAction Navigate(string label, string navigateUrl, string? apiRoute = null, string? method = null)
+        => new(label, "NAVIGATE", navigateUrl, apiRoute, method);
+
+    private static AiChatResponse LocalizeTemplateResponse(
+        AiChatResponse response,
+        SendAiChatMessageCommand request,
+        VerifiedConversationMemory verifiedMemory)
+    {
+        if (!IsEnglish(verifiedMemory.Language))
+        {
+            return response;
+        }
+
+        var suggestedReplies = LocalizeSuggestedReplies(response.SuggestedReplies);
+        var reply = BuildEnglishTemplateReply(response, request, verifiedMemory);
+        return response with { Reply = reply, SuggestedReplies = suggestedReplies };
+    }
+
+    private static string BuildEnglishTemplateReply(
+        AiChatResponse response,
+        SendAiChatMessageCommand request,
+        VerifiedConversationMemory verifiedMemory)
+    {
+        var firstCard = response.Cards.FirstOrDefault();
+        return response.Intent switch
+        {
+            "PRODUCT_SEARCH" when IsFashionClarificationResponse(response) =>
+                "I understand the fashion need, but I need one more detail to search the real catalog correctly. Which type do you prefer: blouse, T-shirt, shirt, or blazer?",
+            "PRODUCT_SEARCH" when response.Cards.Count == 0 =>
+                "I could not find a product that truly matches this request yet. Would you like me to search more broadly or remove one filter such as price or color?",
+            "PRODUCT_SEARCH" when response.Cards.Count == 1 =>
+                $"I found one product that fits your request: {firstCard?.Name}. It is available in the catalog, so I can help you choose the right size or open the product page next.",
+            "PRODUCT_SEARCH" =>
+                $"I found {response.Cards.Count} products that match your request. Pick one card and I can help with size, color, or the next step to add it to cart.",
+            "SIZE_ADVICE" when response.Recommendation is not null =>
+                $"Based on the details you provided, I recommend size {response.Recommendation.Size}. {response.Recommendation.Reason} If you want, I can open the current product or help you add the right variant to cart.",
+            "SIZE_ADVICE" =>
+                "To recommend the right size, please send your height and weight, for example: I am 165cm and 55kg. If you are on a product page, I can also check the sizes still available for that item.",
+            "PRODUCT_DETAIL_HELP" when verifiedMemory.ProductId.HasValue =>
+                "I can help with size, available colors, material, styling, or whether this product is ready to add to cart. Tell me what you want to check first.",
+            "PRODUCT_DETAIL_HELP" =>
+                "I can help with size, material, available colors, or styling. Open a product detail page or tell me which item you are considering so I can answer more accurately.",
+            "ADD_TO_CART" when request.UserId is null =>
+                "Please log in first so I can add items to your cart securely.",
+            "ADD_TO_CART" =>
+                "I checked the cart action. If product, variant, and saved design are ready, you can add this item to cart or open the cart to review it.",
+            "CART_STATUS" when request.UserId is null =>
+                "Please log in first so I can view your cart securely.",
+            "CART_STATUS" =>
+                "I checked your cart context. You can open the cart to review items, continue browsing, or proceed to checkout when shipping details are ready.",
+            "CART_CHECKOUT" when request.UserId is null =>
+                "Please log in first so I can checkout your cart securely.",
+            "CART_CHECKOUT" =>
+                "To checkout, make sure recipient name, phone number, and shipping address are filled in. Once they are ready, you can open checkout and create the order from the cart.",
+            "CHECKOUT_HELP" =>
+                "I can guide you through checkout, payment link/QR, or payment status issues. If payment was completed but the order did not update, open your orders or create a support request.",
+            "ORDER_STATUS_HELP" when request.UserId is null =>
+                "Please log in first so I can check your order and payment information securely.",
+            "ORDER_STATUS_HELP" when response.SupportTicket is not null =>
+                "I created a support request for this order issue. Staff will have the order/payment context to continue checking it.",
+            "ORDER_STATUS_HELP" =>
+                "I can check order status, payment status, and whether the order is stuck. Open the order details or send the order ID so I can verify it.",
+            _ =>
+                "Tell me what you need help with: finding products, choosing a size, checking cart, checkout, or order support. I will guide you to the right next step."
+        };
+    }
+
+    private static IReadOnlyCollection<string> LocalizeSuggestedReplies(IReadOnlyCollection<string> suggestions)
+        => suggestions.Select(LocalizeSuggestedReply).ToArray();
+
+    private static string LocalizeSuggestedReply(string suggestion)
+        => suggestion switch
+        {
+            "Tìm rộng hơn" => "Search more broadly",
+            "Bỏ điều kiện giá" => "Remove price filter",
+            "Tìm sản phẩm đang có sẵn" => "Find available products",
+            "Tư vấn size giúp tôi" => "Help me choose a size",
+            "Mẫu nào đáng mua nhất?" => "Which one is best?",
+            "Tìm mẫu rẻ hơn" => "Find a cheaper option",
+            "Đăng nhập" => "Log in",
+            "Tìm sản phẩm" => "Find products",
+            "Mở giỏ hàng" => "Open cart",
+            "Checkout giỏ hàng" => "Checkout cart",
+            "Xem giỏ hàng" => "View cart",
+            "Tìm thêm sản phẩm" => "Find more products",
+            "Tạo yêu cầu hỗ trợ" => "Create support request",
+            "Nhập thông tin giao hàng" => "Enter shipping information",
+            "Thanh toán đơn này" => "Pay this order",
+            "Kiểm tra trạng thái đơn" => "Check order status",
+            "Tư vấn size" => "Size advice",
+            "Có màu nào khác không?" => "Any other colors?",
+            "Gợi ý phối đồ" => "Styling advice",
+            "Áo kiểu đi tiệc" => "Party blouse",
+            "Áo thun đi tiệc" => "Party T-shirt",
+            "Sơ mi đi tiệc" => "Party shirt",
+            "Blazer đi tiệc" => "Party blazer",
+            "Áo kiểu" => "Blouse",
+            "Áo thun" => "T-shirt",
+            "Sơ mi" => "Shirt",
+            "Blazer" => "Blazer",
+            "Đơn bị kẹt xử lý" => "Order is stuck",
+            "Đã thanh toán nhưng chưa cập nhật" => "Paid but not updated",
+            "Kiểm tra đơn hàng" => "Check order",
+            _ => suggestion
+        };
+
+    private static bool IsFashionClarificationResponse(AiChatResponse response)
+    {
+        return response.SuggestedReplies.Any(reply =>
+            ContainsAnyNormalized(
+                NormalizeForIntent(reply),
+                "ao kieu",
+                "ao thun",
+                "so mi",
+                "blazer"));
+    }
+
     private async Task<VerifiedConversationMemory> BuildVerifiedMemoryAsync(
         SendAiChatMessageCommand request,
         CancellationToken cancellationToken)
@@ -720,6 +1017,7 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
         var latestProductInterest = request.Page?.ProductId;
         var latestOrderContext = request.Page?.OrderId ?? ExtractGuid(request.Message);
         var behavior = BuildBehaviorContext(request, recentMessages);
+        var fashionMemory = BuildFashionPreferenceMemory(recentMessages, request);
 
         return new VerifiedConversationMemory(
             PageType: NormalizePageType(request.Page?.Type),
@@ -739,6 +1037,8 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
             HeightCm: ExtractCentimeters(request.Message),
             WeightKg: ExtractKilograms(request.Message),
             FitPreference: ExtractFitPreference(request.Message),
+            Language: ResolveLanguage(request),
+            FashionMemory: fashionMemory,
             RecentIntentCounts: recentIntentCounts,
             Behavior: behavior,
             Sources: new[] { "PAGE_CONTEXT", "CLIENT_CONTEXT", "RECENT_CHAT", "MESSAGE_EXTRACTION" });
@@ -1018,6 +1318,574 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
         return query;
     }
 
+    private static FashionNeedProfile BuildFashionNeedProfile(
+        string message,
+        FashionPreferenceMemory memory,
+        IReadOnlyCollection<ProductCandidate> catalog)
+    {
+        var normalized = NormalizeForIntent(message);
+        var category = ExtractProductCategory(normalized) ?? memory.PreferredCategories.LastOrDefault();
+        var productType = ExtractProductType(normalized) ?? memory.PreferredProductTypes.LastOrDefault();
+        var occasion = ExtractOccasion(normalized) ?? memory.PreferredOccasions.LastOrDefault();
+        var style = ExtractStyle(normalized) ?? memory.PreferredStyles.LastOrDefault();
+        var fabric = ExtractFabric(normalized) ?? memory.PreferredFabrics.LastOrDefault();
+        var color = ExtractColor(message) ?? memory.PreferredColors.LastOrDefault();
+        var maxPrice = ExtractMaxPrice(message) ?? memory.MaxBudget;
+        var fitPreference = ExtractFitPreference(message) ?? memory.PreferredFits.LastOrDefault();
+        var catalogProductTypes = ExtractCatalogProductTypes(catalog, category).ToArray();
+        var catalogFabrics = ExtractCatalogFabrics(catalog, category).ToArray();
+        var missingProductType = category == "SHIRT" && string.IsNullOrWhiteSpace(productType);
+        var missingCategory = string.IsNullOrWhiteSpace(category);
+        var needsClarification = missingCategory || missingProductType;
+        var clarificationQuestion = needsClarification
+            ? BuildClarificationQuestion(category, occasion, catalogProductTypes, catalogFabrics)
+            : null;
+        var suggestions = needsClarification
+            ? BuildClarificationSuggestions(category, occasion, catalogProductTypes)
+            : BuildProductSearchSuggestions(message);
+
+        return new FashionNeedProfile(
+            RawMessage: message.Trim(),
+            Category: category,
+            ProductType: productType,
+            Occasion: occasion,
+            Style: style,
+            Fabric: fabric,
+            Color: color,
+            MaxPrice: maxPrice,
+            FitPreference: fitPreference,
+            CatalogProductTypes: catalogProductTypes,
+            CatalogFabrics: catalogFabrics,
+            NeedsClarification: needsClarification,
+            ClarificationQuestion: clarificationQuestion,
+            SuggestedReplies: suggestions);
+    }
+
+    private static IEnumerable<ProductCandidate> RankProductCandidates(
+        IReadOnlyCollection<ProductCandidate> products,
+        FashionNeedProfile needProfile,
+        ProductSearch search,
+        bool strict)
+    {
+        return products
+            .Select(product => new
+            {
+                Product = product,
+                Score = ScoreProductCandidate(product, needProfile, search, strict)
+            })
+            .Where(scored => scored.Score > 0)
+            .OrderByDescending(scored => scored.Score)
+            .ThenBy(scored => scored.Product.Product.BasePrice)
+            .Select(scored => scored.Product);
+    }
+
+    private static double ScoreProductCandidate(
+        ProductCandidate product,
+        FashionNeedProfile needProfile,
+        ProductSearch search,
+        bool strict)
+    {
+        if (search.MaxPrice.HasValue && product.Product.BasePrice > search.MaxPrice.Value)
+        {
+            return 0;
+        }
+
+        if (needProfile.MaxPrice.HasValue && product.Product.BasePrice > needProfile.MaxPrice.Value)
+        {
+            return 0;
+        }
+
+        var text = BuildCatalogText(product);
+        var score = 0.25;
+        if (!string.IsNullOrWhiteSpace(needProfile.Category))
+        {
+            var categoryMatch = MatchesProductCategory(text, needProfile.Category);
+            if (!categoryMatch && strict)
+            {
+                return 0;
+            }
+
+            score += categoryMatch ? 4 : 0;
+        }
+
+        if (!string.IsNullOrWhiteSpace(needProfile.ProductType))
+        {
+            var typeMatch = ContainsAnyNormalized(text, ProductTypeSignals(needProfile.ProductType).ToArray());
+            if (!typeMatch && strict)
+            {
+                return 0;
+            }
+
+            score += typeMatch ? 5 : 0;
+        }
+
+        if (!string.IsNullOrWhiteSpace(needProfile.Occasion))
+        {
+            score += MatchesOccasion(text, needProfile.Occasion) ? 2 : 0;
+        }
+
+        if (!string.IsNullOrWhiteSpace(needProfile.Style))
+        {
+            score += ContainsAnyNormalized(text, StyleSignals(needProfile.Style).ToArray()) ? 1.5 : 0;
+        }
+
+        if (!string.IsNullOrWhiteSpace(needProfile.Fabric))
+        {
+            score += ContainsAnyNormalized(text, FabricSignals(needProfile.Fabric).ToArray()) ? 2 : 0;
+        }
+
+        if (!string.IsNullOrWhiteSpace(needProfile.Color))
+        {
+            var colorMatch = ContainsIgnoreCase(product.Product.Name, needProfile.Color)
+                || ContainsIgnoreCase(product.Product.Description, needProfile.Color)
+                || product.AvailableColors.Any(color => ContainsIgnoreCase(color, needProfile.Color));
+            if (!colorMatch && strict)
+            {
+                return 0;
+            }
+
+            score += colorMatch ? 2 : 0;
+        }
+
+        var keywordTokens = NormalizeForIntent(search.Keyword)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(token => token.Length >= 2)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+        score += keywordTokens.Count(token => text.Contains(token, StringComparison.OrdinalIgnoreCase)) * 0.35;
+
+        return score;
+    }
+
+    private static FashionPreferenceMemory BuildFashionPreferenceMemory(
+        IEnumerable<AiChatMessage> recentMessages,
+        SendAiChatMessageCommand request)
+    {
+        var userMessages = recentMessages
+            .Where(message => message.SenderType == AiChatSenderType.User)
+            .OrderBy(message => message.CreatedAt)
+            .Select(message => message.Content)
+            .Append(request.Message)
+            .ToArray();
+        var normalizedText = NormalizeForIntent(string.Join(' ', userMessages));
+        var latestBudget = userMessages
+            .Reverse()
+            .Select(ExtractMaxPrice)
+            .FirstOrDefault(price => price.HasValue);
+
+        return new FashionPreferenceMemory(
+            PreferredCategories: ExtractPreferenceList(normalizedText, ExtractProductCategory),
+            PreferredProductTypes: ExtractKnownSignals(normalizedText, KnownProductTypes()),
+            PreferredOccasions: ExtractKnownSignals(normalizedText, KnownOccasions()),
+            PreferredStyles: ExtractKnownSignals(normalizedText, KnownStyles()),
+            PreferredFabrics: ExtractKnownSignals(normalizedText, KnownFabrics()),
+            PreferredColors: ExtractKnownColors(normalizedText),
+            PreferredFits: ExtractKnownFits(normalizedText),
+            MaxBudget: latestBudget,
+            HeightCm: userMessages.Reverse().Select(ExtractCentimeters).FirstOrDefault(value => value.HasValue),
+            WeightKg: userMessages.Reverse().Select(ExtractKilograms).FirstOrDefault(value => value.HasValue));
+    }
+
+    private static IReadOnlyCollection<string> ExtractPreferenceList(
+        string normalizedText,
+        Func<string, string?> extractor)
+    {
+        var value = extractor(normalizedText);
+        return string.IsNullOrWhiteSpace(value) ? Array.Empty<string>() : new[] { value };
+    }
+
+    private static bool HasAvailableStock(ProductCandidate product)
+        => product.AvailableSizes.Count > 0 || product.AvailableColors.Count > 0;
+
+    private static bool MatchesRequestedProductFamily(ProductCandidate product, string message)
+    {
+        var normalizedMessage = NormalizeForIntent(message);
+        var normalizedProductText = NormalizeForIntent($"{product.Product.Name} {product.Product.Description} {product.Detail?.Name} {product.Detail?.Description}");
+
+        if (ContainsAnyNormalized(normalizedMessage, "ao", "shirt", "top", "blouse", "tee", "t shirt", "tshirt", "so mi", "blazer"))
+        {
+            return ContainsAnyNormalized(
+                normalizedProductText,
+                "ao",
+                "shirt",
+                "top",
+                "blouse",
+                "tee",
+                "t shirt",
+                "tshirt",
+                "so mi",
+                "blazer");
+        }
+
+        if (ContainsAnyNormalized(normalizedMessage, "vay", "dam", "dress", "skirt"))
+        {
+            return ContainsAnyNormalized(normalizedProductText, "vay", "dam", "dress", "skirt");
+        }
+
+        if (ContainsAnyNormalized(normalizedMessage, "quan", "pants", "trouser", "jeans", "short"))
+        {
+            return ContainsAnyNormalized(normalizedProductText, "quan", "pants", "trouser", "jeans", "short");
+        }
+
+        return true;
+    }
+
+    private static bool IsShirtAdviceQuery(string message)
+    {
+        var normalized = NormalizeForIntent(message);
+        return ContainsAnyNormalized(normalized, "ao", "shirt", "top", "blouse", "tee", "t shirt", "tshirt", "so mi", "blazer");
+    }
+
+    private static string? ExtractProductCategory(string normalizedText)
+    {
+        if (ContainsAnyNormalized(normalizedText, "ao", "shirt", "top", "blouse", "tee", "t shirt", "tshirt", "so mi", "blazer"))
+        {
+            return "SHIRT";
+        }
+
+        if (ContainsAnyNormalized(normalizedText, "vay", "dam", "dress", "skirt"))
+        {
+            return "DRESS";
+        }
+
+        if (ContainsAnyNormalized(normalizedText, "quan", "pants", "trouser", "jeans", "short"))
+        {
+            return "PANTS";
+        }
+
+        return null;
+    }
+
+    private static string? ExtractProductType(string normalizedText)
+    {
+        return KnownProductTypes()
+            .FirstOrDefault(type => ContainsAnyNormalized(normalizedText, ProductTypeSignals(type).ToArray()));
+    }
+
+    private static string? ExtractOccasion(string normalizedText)
+    {
+        return KnownOccasions()
+            .FirstOrDefault(occasion => ContainsAnyNormalized(normalizedText, OccasionSignals(occasion).ToArray()));
+    }
+
+    private static string? ExtractStyle(string normalizedText)
+    {
+        return KnownStyles()
+            .FirstOrDefault(style => ContainsAnyNormalized(normalizedText, StyleSignals(style).ToArray()));
+    }
+
+    private static string? ExtractFabric(string normalizedText)
+    {
+        return KnownFabrics()
+            .FirstOrDefault(fabric => ContainsAnyNormalized(normalizedText, FabricSignals(fabric).ToArray()));
+    }
+
+    private static IReadOnlyCollection<string> ExtractKnownSignals(string normalizedText, IEnumerable<string> values)
+        => values
+            .Where(value => ContainsAnyNormalized(normalizedText, SignalsForValue(value).ToArray()))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static IReadOnlyCollection<string> ExtractKnownColors(string normalizedText)
+    {
+        var colors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["trang"] = "white",
+            ["white"] = "white",
+            ["den"] = "black",
+            ["black"] = "black",
+            ["do"] = "red",
+            ["red"] = "red",
+            ["xanh"] = "blue",
+            ["blue"] = "blue",
+            ["hong"] = "pink",
+            ["pink"] = "pink"
+        };
+
+        return colors
+            .Where(color => normalizedText.Contains(color.Key, StringComparison.OrdinalIgnoreCase))
+            .Select(color => color.Value)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IReadOnlyCollection<string> ExtractKnownFits(string normalizedText)
+    {
+        var fits = new List<string>();
+        if (ContainsAnyNormalized(normalizedText, "mac rong", "oversize", "oversized", "thoai mai", "form rong"))
+        {
+            fits.Add("LOOSE");
+        }
+
+        if (ContainsAnyNormalized(normalizedText, "mac vua", "vua nguoi", "om", "sat nguoi", "fit"))
+        {
+            fits.Add("FITTED");
+        }
+
+        return fits;
+    }
+
+    private static IEnumerable<string> ExtractCatalogProductTypes(
+        IEnumerable<ProductCandidate> catalog,
+        string? category)
+    {
+        return KnownProductTypes()
+            .Where(type => catalog.Any(product =>
+            {
+                var text = BuildCatalogText(product);
+                return (category is null || MatchesProductCategory(text, category))
+                    && ContainsAnyNormalized(text, ProductTypeSignals(type).ToArray());
+            }))
+            .Take(5)
+            .ToArray();
+    }
+
+    private static IEnumerable<string> ExtractCatalogFabrics(
+        IEnumerable<ProductCandidate> catalog,
+        string? category)
+    {
+        return KnownFabrics()
+            .Where(fabric => catalog.Any(product =>
+            {
+                var text = BuildCatalogText(product);
+                return (category is null || MatchesProductCategory(text, category))
+                    && ContainsAnyNormalized(text, FabricSignals(fabric).ToArray());
+            }))
+            .Take(5)
+            .ToArray();
+    }
+
+    private static string? BuildClarificationQuestion(
+        string? category,
+        string? occasion,
+        IReadOnlyCollection<string> catalogProductTypes,
+        IReadOnlyCollection<string> catalogFabrics)
+    {
+        var occasionText = occasion == "PARTY" ? "đi tiệc" : "theo nhu cầu này";
+        var typeText = catalogProductTypes.Count > 0
+            ? string.Join(", ", catalogProductTypes.Select(DisplayProductTypeVi))
+            : "áo kiểu, áo thun, sơ mi hay blazer";
+        var fabricText = catalogFabrics.Count > 0
+            ? $" Em cũng thấy trong DB có chất liệu như {string.Join(", ", catalogFabrics.Select(DisplayFabricVi))}, nên em có thể lọc theo chất liệu nếu anh/chị thích."
+            : string.Empty;
+
+        return category switch
+        {
+            "SHIRT" => $"Em hiểu anh/chị đang tìm áo {occasionText}, nhưng cần rõ kiểu áo để lọc đúng hàng còn trong DB: anh/chị thích {typeText} ạ?{fabricText}",
+            null => $"Anh/chị muốn tìm nhóm sản phẩm nào ạ: áo, váy/đầm hay quần? Em sẽ kiểm tra đúng catalog và tồn kho rồi gợi ý mẫu còn hàng.",
+            _ => $"Em cần thêm một ý để tìm sát hơn trong catalog: anh/chị thích kiểu/form nào và ưu tiên chất liệu gì ạ?"
+        };
+    }
+
+    private static IReadOnlyCollection<string> BuildClarificationSuggestions(
+        string? category,
+        string? occasion,
+        IReadOnlyCollection<string> catalogProductTypes)
+    {
+        if (category == "SHIRT")
+        {
+            var suffix = occasion == "PARTY" ? " đi tiệc" : string.Empty;
+            var suggestions = catalogProductTypes.Count > 0
+                ? catalogProductTypes.Select(type => $"{DisplayProductTypeVi(type)}{suffix}")
+                : new[] { $"Áo kiểu{suffix}", $"Áo thun{suffix}", $"Sơ mi{suffix}" };
+
+            return suggestions.Take(3).ToArray();
+        }
+
+        return new[] { "Tìm áo", "Tìm váy đi tiệc", "Tìm sản phẩm dưới 500k" };
+    }
+
+    private static string BuildNeedSummary(FashionNeedProfile needProfile)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(needProfile.ProductType))
+        {
+            parts.Add(DisplayProductTypeVi(needProfile.ProductType));
+        }
+        else if (!string.IsNullOrWhiteSpace(needProfile.Category))
+        {
+            parts.Add(DisplayCategoryVi(needProfile.Category));
+        }
+        else
+        {
+            parts.Add("nhu cầu của anh/chị");
+        }
+
+        if (needProfile.Occasion == "PARTY")
+        {
+            parts.Add("đi tiệc");
+        }
+        else if (needProfile.Occasion == "WORK")
+        {
+            parts.Add("đi làm");
+        }
+        else if (needProfile.Occasion == "CASUAL")
+        {
+            parts.Add("đi chơi/hằng ngày");
+        }
+
+        if (!string.IsNullOrWhiteSpace(needProfile.Fabric))
+        {
+            parts.Add($"chất {DisplayFabricVi(needProfile.Fabric)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(needProfile.Color))
+        {
+            parts.Add($"màu {needProfile.Color}");
+        }
+
+        return string.Join(' ', parts);
+    }
+
+    private static string BuildCatalogText(ProductCandidate product)
+    {
+        var variantText = product.Detail?.Variants is null
+            ? string.Empty
+            : string.Join(' ', product.Detail.Variants.Select(variant => $"{variant.Size} {variant.Color} {variant.Material} {variant.Sku}"));
+
+        return NormalizeForIntent($"{product.Product.Name} {product.Product.Description} {product.Detail?.Name} {product.Detail?.Description} {variantText}");
+    }
+
+    private static bool MatchesProductCategory(string normalizedCatalogText, string category)
+    {
+        return category switch
+        {
+            "SHIRT" => ContainsAnyNormalized(normalizedCatalogText, "ao", "shirt", "top", "blouse", "tee", "t shirt", "tshirt", "so mi", "blazer"),
+            "DRESS" => ContainsAnyNormalized(normalizedCatalogText, "vay", "dam", "dress", "skirt"),
+            "PANTS" => ContainsAnyNormalized(normalizedCatalogText, "quan", "pants", "trouser", "jeans", "short"),
+            _ => true
+        };
+    }
+
+    private static bool MatchesOccasion(string normalizedCatalogText, string occasion)
+    {
+        return occasion switch
+        {
+            "PARTY" => ContainsAnyNormalized(normalizedCatalogText, "tiec", "party", "event", "satin", "lua", "silk", "chiffon", "elegant", "formal", "du tiec"),
+            "WORK" => ContainsAnyNormalized(normalizedCatalogText, "cong so", "office", "work", "so mi", "blazer", "formal"),
+            "CASUAL" => ContainsAnyNormalized(normalizedCatalogText, "casual", "di choi", "hang ngay", "daily", "cotton", "tee", "ao thun"),
+            _ => false
+        };
+    }
+
+    private static IReadOnlyCollection<string> KnownProductTypes()
+        => new[] { "BLOUSE", "T_SHIRT", "SHIRT", "BLAZER", "CROPTOP", "DRESS", "SKIRT", "PANTS", "JEANS", "SHORTS" };
+
+    private static IReadOnlyCollection<string> KnownOccasions()
+        => new[] { "PARTY", "WORK", "CASUAL" };
+
+    private static IReadOnlyCollection<string> KnownStyles()
+        => new[] { "ELEGANT", "MINIMAL", "OVERSIZED", "SLIM", "STREET" };
+
+    private static IReadOnlyCollection<string> KnownFabrics()
+        => new[] { "SILK", "SATIN", "CHIFFON", "COTTON", "LINEN", "DENIM", "KNIT" };
+
+    private static IEnumerable<string> SignalsForValue(string value)
+        => ProductTypeSignals(value)
+            .Concat(OccasionSignals(value))
+            .Concat(StyleSignals(value))
+            .Concat(FabricSignals(value));
+
+    private static IEnumerable<string> ProductTypeSignals(string value)
+    {
+        return value switch
+        {
+            "BLOUSE" => new[] { "ao kieu", "blouse" },
+            "T_SHIRT" => new[] { "ao thun", "t shirt", "tshirt", "tee" },
+            "SHIRT" => new[] { "so mi", "shirt" },
+            "BLAZER" => new[] { "blazer", "vest" },
+            "CROPTOP" => new[] { "croptop", "crop top" },
+            "DRESS" => new[] { "vay", "dam", "dress" },
+            "SKIRT" => new[] { "chan vay", "skirt" },
+            "PANTS" => new[] { "quan", "pants", "trouser" },
+            "JEANS" => new[] { "jeans", "denim pants" },
+            "SHORTS" => new[] { "short", "shorts", "quan short" },
+            _ => Array.Empty<string>()
+        };
+    }
+
+    private static IEnumerable<string> OccasionSignals(string value)
+    {
+        return value switch
+        {
+            "PARTY" => new[] { "di tiec", "du tiec", "party", "event", "formal" },
+            "WORK" => new[] { "di lam", "cong so", "office", "work" },
+            "CASUAL" => new[] { "di choi", "hang ngay", "daily", "casual" },
+            _ => Array.Empty<string>()
+        };
+    }
+
+    private static IEnumerable<string> StyleSignals(string value)
+    {
+        return value switch
+        {
+            "ELEGANT" => new[] { "thanh lich", "elegant", "sang", "formal" },
+            "MINIMAL" => new[] { "toi gian", "minimal", "basic" },
+            "OVERSIZED" => new[] { "oversize", "oversized", "form rong", "rong" },
+            "SLIM" => new[] { "slim", "om", "sat nguoi", "fit" },
+            "STREET" => new[] { "street", "ca tinh", "nang dong" },
+            _ => Array.Empty<string>()
+        };
+    }
+
+    private static IEnumerable<string> FabricSignals(string value)
+    {
+        return value switch
+        {
+            "SILK" => new[] { "lua", "silk" },
+            "SATIN" => new[] { "satin" },
+            "CHIFFON" => new[] { "chiffon", "voan" },
+            "COTTON" => new[] { "cotton", "thun" },
+            "LINEN" => new[] { "linen", "lanh" },
+            "DENIM" => new[] { "denim", "jeans" },
+            "KNIT" => new[] { "knit", "len", "det kim" },
+            _ => Array.Empty<string>()
+        };
+    }
+
+    private static string DisplayProductTypeVi(string value)
+        => value switch
+        {
+            "BLOUSE" => "áo kiểu",
+            "T_SHIRT" => "áo thun",
+            "SHIRT" => "sơ mi",
+            "BLAZER" => "blazer",
+            "CROPTOP" => "croptop",
+            "DRESS" => "đầm/váy",
+            "SKIRT" => "chân váy",
+            "PANTS" => "quần",
+            "JEANS" => "jeans",
+            "SHORTS" => "shorts",
+            _ => value.ToLowerInvariant()
+        };
+
+    private static string DisplayCategoryVi(string value)
+        => value switch
+        {
+            "SHIRT" => "áo",
+            "DRESS" => "váy/đầm",
+            "PANTS" => "quần",
+            _ => "sản phẩm"
+        };
+
+    private static string DisplayFabricVi(string value)
+        => value switch
+        {
+            "SILK" => "lụa",
+            "SATIN" => "satin",
+            "CHIFFON" => "voan/chiffon",
+            "COTTON" => "cotton/thun",
+            "LINEN" => "linen",
+            "DENIM" => "denim",
+            "KNIT" => "dệt kim",
+            _ => value.ToLowerInvariant()
+        };
+
+    private static string TrimForReply(string message)
+    {
+        var trimmed = Regex.Replace(message, "\\s+", " ").Trim();
+        return trimmed.Length <= 80 ? trimmed : $"{trimmed[..77]}...";
+    }
+
     private static decimal? ExtractMaxPrice(string message)
     {
         var match = PriceRegex().Match(message.ToLowerInvariant());
@@ -1055,7 +1923,7 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
         var keyword = PriceRegex().Replace(message, string.Empty);
         keyword = Regex.Replace(
             keyword,
-            "\\b(tìm|tim|dưới|duoi|tầm|tam|khoảng|khoang|giá|gia|sản phẩm|san pham|cho tôi|giúp tôi|giup toi)\\b",
+            "\\b(tìm|tim|tư vấn|tu van|recommend|find|looking for|help me|dưới|duoi|tầm|tam|khoảng|khoang|giá|gia|sản phẩm|san pham|cho tôi|giúp tôi|giup toi|mình muốn|minh muon|tôi muốn|toi muon)\\b",
             string.Empty,
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         keyword = Regex.Replace(keyword, "\\s+", " ").Trim(' ', ',', '.', '-', ':', ';');
@@ -1331,6 +2199,61 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
     private static string? NormalizePageType(string? pageType)
         => string.IsNullOrWhiteSpace(pageType) ? null : pageType.Trim().ToUpperInvariant();
 
+    private static string ResolveLanguage(SendAiChatMessageCommand request)
+    {
+        var explicitLanguage = NormalizeLanguage(request.ClientContext?.Language) ?? NormalizeLanguage(request.Page?.Language);
+        if (explicitLanguage is not null)
+        {
+            return explicitLanguage;
+        }
+
+        return LooksEnglish(request.Message) ? "EN" : "VI";
+    }
+
+    private static string? NormalizeLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return null;
+        }
+
+        var normalized = language.Trim().ToUpperInvariant();
+        return normalized switch
+        {
+            "EN" or "ENG" or "EN-US" or "ENGLISH" => "EN",
+            "VI" or "VN" or "VI-VN" or "VIETNAMESE" or "TIENG VIET" => "VI",
+            _ => null
+        };
+    }
+
+    private static bool IsEnglish(string? language)
+        => string.Equals(language, "EN", StringComparison.OrdinalIgnoreCase);
+
+    private static bool LooksEnglish(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return false;
+        }
+
+        var normalized = NormalizeForIntent(message);
+        var englishSignals = new[]
+        {
+            "hello", "hi", "can you", "please", "recommend", "size", "color", "cart",
+            "checkout", "payment", "order", "product", "shirt", "dress", "price",
+            "available", "help me", "i want", "show me", "how"
+        };
+        var vietnameseSignals = new[]
+        {
+            "xin chao", "cho toi", "giup toi", "tu van", "san pham", "gio hang",
+            "thanh toan", "don hang", "mau nao", "co mau", "cao", "nang", "mac"
+        };
+
+        var englishScore = englishSignals.Count(signal => normalized.Contains(signal, StringComparison.OrdinalIgnoreCase));
+        var vietnameseScore = vietnameseSignals.Count(signal => normalized.Contains(signal, StringComparison.OrdinalIgnoreCase));
+        return englishScore > vietnameseScore;
+    }
+
     private static string? SerializeOrNull(object? value)
         => value is null ? null : JsonSerializer.Serialize(value, JsonOptions);
 
@@ -1456,6 +2379,8 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
         int? HeightCm,
         int? WeightKg,
         string? FitPreference,
+        string Language,
+        FashionPreferenceMemory FashionMemory,
         IReadOnlyDictionary<string, int> RecentIntentCounts,
         AiChatBehaviorContext Behavior,
         IReadOnlyCollection<string> Sources);
@@ -1465,6 +2390,34 @@ public partial class SendAiChatMessageCommandHandler : IRequestHandler<SendAiCha
         string Urgency,
         string? Objection,
         bool HandoffRecommended);
+
+    private sealed record FashionPreferenceMemory(
+        IReadOnlyCollection<string> PreferredCategories,
+        IReadOnlyCollection<string> PreferredProductTypes,
+        IReadOnlyCollection<string> PreferredOccasions,
+        IReadOnlyCollection<string> PreferredStyles,
+        IReadOnlyCollection<string> PreferredFabrics,
+        IReadOnlyCollection<string> PreferredColors,
+        IReadOnlyCollection<string> PreferredFits,
+        decimal? MaxBudget,
+        int? HeightCm,
+        int? WeightKg);
+
+    private sealed record FashionNeedProfile(
+        string RawMessage,
+        string? Category,
+        string? ProductType,
+        string? Occasion,
+        string? Style,
+        string? Fabric,
+        string? Color,
+        decimal? MaxPrice,
+        string? FitPreference,
+        IReadOnlyCollection<string> CatalogProductTypes,
+        IReadOnlyCollection<string> CatalogFabrics,
+        bool NeedsClarification,
+        string? ClarificationQuestion,
+        IReadOnlyCollection<string> SuggestedReplies);
 
     private sealed record ProductSearch(string Keyword, decimal? MaxPrice, string? Color);
 
