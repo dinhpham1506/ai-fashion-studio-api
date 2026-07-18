@@ -89,12 +89,9 @@ spring:
 
 springdoc:
   swagger-ui:
-    path: /swagger-ui.html
-    urls:
-      - name: Java Core API
-        url: /v3/api-docs/java-core-api
-      - name: Platform API
-        url: /v3/api-docs/platform-api
+    # The gateway serves Swagger UI webjar assets, while SwaggerUiController
+    # provides the UI config for the two proxied OpenAPI documents.
+    enabled: false
 
 management:
   endpoints:
