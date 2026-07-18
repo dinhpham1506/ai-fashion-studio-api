@@ -57,7 +57,7 @@ namespace AiFashionStudio.Platform.Infrastructure.Payment
             {
                 OrderCode = request.OrderCode,
                 Amount = request.Amount,
-                Description = request.Description,
+                Description = NormalizePayOsDescription(request.Description, request.OrderCode),
                 ReturnUrl = string.IsNullOrEmpty(request.ReturnUrl) ? _payOsSettings.ReturnUrl : request.ReturnUrl,
                 CancelUrl = string.IsNullOrEmpty(request.CancelUrl) ? _payOsSettings.CancelUrl : request.CancelUrl
             };
@@ -66,6 +66,28 @@ namespace AiFashionStudio.Platform.Infrastructure.Payment
 
             return new PaymentLinkResponse(result.PaymentLinkId, result.CheckoutUrl, result.QrCode);
 
+        }
+
+        private static string NormalizePayOsDescription(string description, long orderCode)
+        {
+            if (string.IsNullOrWhiteSpace(description))
+            {
+                return BuildFallbackDescription(orderCode);
+            }
+
+            var normalized = string.Join(' ', description.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+            return normalized.Length <= 25
+                ? normalized
+                : BuildFallbackDescription(orderCode);
+        }
+
+        private static string BuildFallbackDescription(long orderCode)
+        {
+            var orderCodeText = orderCode.ToString();
+            var suffix = orderCodeText.Length <= 18 ? orderCodeText : orderCodeText[^18..];
+
+            return $"AFS {suffix}";
         }
 
         /// <summary>

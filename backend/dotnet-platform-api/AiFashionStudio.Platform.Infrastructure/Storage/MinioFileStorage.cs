@@ -1,4 +1,5 @@
 using AiFashionStudio.Platform.Application.Common.Interfaces.IServices;
+using AiFashionStudio.Platform.Application.Common.Exceptions;
 using Minio.Exceptions;
 using Microsoft.Extensions.Options;
 using Minio;
@@ -22,6 +23,7 @@ namespace AiFashionStudio.Platform.Infrastructure.Storage
         public MinioFileStorage(IOptions<MinioSettings> options)
         {
             var settings = options.Value;
+            ValidateSettings(settings);
             _publicBaseUrl = settings.PublicBaseUrl.TrimEnd('/');
             _client = new MinioClient()
                 .WithEndpoint(settings.Endpoint)
@@ -77,5 +79,18 @@ namespace AiFashionStudio.Platform.Infrastructure.Storage
             => exception.Message.Contains("BucketAlready", StringComparison.OrdinalIgnoreCase)
             || exception.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase)
             || exception.Message.Contains("already owned", StringComparison.OrdinalIgnoreCase);
+
+        private static void ValidateSettings(MinioSettings settings)
+        {
+            if (string.IsNullOrWhiteSpace(settings.Endpoint)
+                || string.IsNullOrWhiteSpace(settings.AccessKey)
+                || string.IsNullOrWhiteSpace(settings.SecretKey)
+                || string.IsNullOrWhiteSpace(settings.PublicBaseUrl))
+            {
+                throw new ServiceUnavailableException(
+                    "MINIO_CONFIGURATION_MISSING",
+                    "MinIO storage is not configured. Check Minio__Endpoint, Minio__AccessKey, Minio__SecretKey, and Minio__PublicBaseUrl.");
+            }
+        }
     }
 }

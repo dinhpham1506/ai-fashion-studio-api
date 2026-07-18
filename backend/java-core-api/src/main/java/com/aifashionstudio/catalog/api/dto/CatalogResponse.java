@@ -18,6 +18,8 @@ public record CatalogResponse(
         BigDecimal basePrice,
         @Schema(description = "Catalog product status", example = "ACTIVE")
         CatalogStatus status,
+        @Schema(description = "Product thumbnail image URL")
+        String thumbnailUrl,
         @Schema(description = "Creation timestamp")
         OffsetDateTime createdAt,
         @Schema(description = "Last update timestamp")

@@ -14,6 +14,8 @@ public interface ProductImageRepository {
 
     List<ProductImage> findByProductIdOrderBySortOrderAsc(UUID productId);
 
+    List<ProductImage> findByProductIdInOrderByProductIdAscThumbnailDescSortOrderAsc(List<UUID> productIds);
+
     Optional<ProductImage> findByProductIdAndThumbnailTrue(UUID productId);
 
     void deleteByProductId(UUID productId);

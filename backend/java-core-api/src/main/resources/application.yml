@@ -24,6 +24,23 @@ spring:
       group-id: java-core-api
       auto-offset-reset: earliest
 
+storage:
+  s3:
+    # Internal endpoint (container network); docker-compose overrides host to "minio"
+    endpoint: ${STORAGE_S3_ENDPOINT:http://localhost:19000}
+    access-key: ${STORAGE_S3_ACCESS_KEY:admin}
+    secret-key: ${STORAGE_S3_SECRET_KEY:admin_db@@}
+    # Browser-facing URL used to build public links to uploaded objects (may differ from endpoint above)
+    public-base-url: ${STORAGE_S3_PUBLIC_BASE_URL:http://localhost:19000}
+
+design:
+  image-generation:
+    # Free, no-API-key text-to-image endpoint (Pollinations.ai)
+    base-url: ${DESIGN_IMAGE_GEN_BASE_URL:https://image.pollinations.ai/prompt/}
+    width: ${DESIGN_IMAGE_GEN_WIDTH:768}
+    height: ${DESIGN_IMAGE_GEN_HEIGHT:768}
+    timeout-seconds: ${DESIGN_IMAGE_GEN_TIMEOUT_SECONDS:60}
+
 management:
   endpoints:
     web:

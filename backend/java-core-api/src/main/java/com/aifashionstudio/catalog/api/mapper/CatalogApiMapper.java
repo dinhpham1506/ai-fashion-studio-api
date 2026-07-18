@@ -48,6 +48,7 @@ public class CatalogApiMapper {
                 result.description(),
                 result.basePrice(),
                 result.status(),
+                result.thumbnailUrl(),
                 result.createdAt(),
                 result.updatedAt()
         );

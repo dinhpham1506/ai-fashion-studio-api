@@ -1,6 +1,7 @@
 using AiFashionStudio.Platform.Domain.Invoice.Entities;
 using AiFashionStudio.Platform.Domain.Identity.Entities;
 using AiFashionStudio.Platform.Domain.Payment.Entities;
+using AiFashionStudio.Platform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -13,9 +14,10 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
     /// </summary>
     public void Configure(EntityTypeBuilder<Invoice> builder)
     {
-        builder.ToTable("invoices");
+        builder.ToTable("invoices", DatabaseSchemas.Payment);
         builder.HasKey(invoice => invoice.Id);
 
+        builder.Property(invoice => invoice.Id).HasColumnName("id");
         builder.Property(invoice => invoice.OrderId).HasColumnName("order_id");
         builder.Property(invoice => invoice.PaymentId).HasColumnName("payment_id");
         builder.Property(invoice => invoice.CustomerId).HasColumnName("customer_id");
